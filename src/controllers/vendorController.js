@@ -140,7 +140,7 @@ const showAllVendors = async (req, res, next) => {
 // controller
 const getVendorById = async (req, res, next) => {
   try {
-    const { id } = req.query.id;
+    const { id } = req.query;
 
     if (!id) {
       return next(new ApiError(errorConstants.VENDOR.VENDOR_ID_REQUIRED, 400));
@@ -155,13 +155,14 @@ const getVendorById = async (req, res, next) => {
     const vendorResponse = {
       vendorId: foundVendor.vendorId,
       name: foundVendor.name,
-      phone: foundVendor.primaryContactNumber,
+
       email: foundVendor.email,
       street: foundVendor.street,
       city: foundVendor.city,
       state: foundVendor.state,
       zip: foundVendor.zip,
       primaryContactNumber: foundVendor.primaryContactNumber,
+      contactPerson: foundVendor.contactPerson,
       alternativeContactNumber: foundVendor.alternativeContactNumber,
       category: foundVendor.category,
       accountNumber: foundVendor.accountNumber,
