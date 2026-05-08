@@ -32,8 +32,12 @@ const register = async (req, res, next) => {
       .findOne({ email: value.email.toLowerCase() })
       .lean();
     if (existingUser) {
+      logger.warn({
+        message: errorConstants.AUTHENTICATION.USER_ALREADY_EXISTS,
+        timestamp: new Date().toISOString(),
+      });
       return next(
-        new ApiError(errorConstants.AUTHENTICATION.USER_ALREADY_EXISTS, 409)
+        new ApiError(errorConstants.AUTHENTICATION.USER_ALREADY_EXISTS)
       );
     }
 
@@ -41,7 +45,7 @@ const register = async (req, res, next) => {
     const newUser = await user.create(value);
 
     const otp = otpService.generateOTP();
-    otpService.setOTP(newUser.email, otp, 'register');
+    await otpService.setOTP(newUser.email, otp, 'register');
 
     // store context in session:
     req.session.email = newUser.email.toLowerCase();
@@ -358,13 +362,19 @@ const verifyOtp = async (req, res, next) => {
       );
     }
 
-    const otpResult = otpService.verifyOTP(email.toLowerCase(), otp, context);
+    const otpResult = await otpService.verifyOTP(
+      email.toLowerCase(),
+      otp,
+      context
+    );
     if (!otpResult.valid) {
       return next(new ApiError(otpResult.reason, 400));
     }
 
     // Mark OTP verified for this context:
     req.session.otpVerified = true;
+    delete req.session.expiresAt;
+
     if (context === 'register') {
       await user.updateOne(
         { email: email.toLowerCase() },
@@ -414,7 +424,7 @@ const resetPassword = async (req, res, next) => {
       );
     }
 
-    if (req.session.expiresAt < Date.now()) {
+    if (!req.session.otpVerified && req.session.expiresAt < Date.now()) {
       req.session.destroy();
       return next(
         new ApiError(errorConstants.AUTHENTICATION.SESSION_EXPIRED, 400)

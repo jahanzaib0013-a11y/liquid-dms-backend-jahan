@@ -11,6 +11,7 @@ import ApiErrorMiddleware from './middleware/ApiError.middleware.js';
 import requestValidator from './middleware/requestValidator.middleware.js';
 import router from './router/index.js';
 import cookieParser from 'cookie-parser';
+
 const app = express();
 
 const startServer = async () => {
@@ -20,15 +21,14 @@ const startServer = async () => {
     // ✅ Middleware setup
     app.use(
       cors({
-        origin: '*',
-        credentials: true, // if you're using cookies or sessions
+        origin: 'http://localhost:3000',
+        credentials: true,
       })
     );
     app.use(cookieParser());
+    app.use(getSessionMiddleware());
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
-
-    app.use(getSessionMiddleware());
 
     app.use(requestValidator);
 
