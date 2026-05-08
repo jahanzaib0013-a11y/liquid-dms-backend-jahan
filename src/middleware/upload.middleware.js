@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // ✅ Resolve the path to src/uploads
-const uploadDir = path.resolve(__dirname, 'uploads');
+const uploadDir = path.resolve(__dirname, '../uploads');
 
 // ✅ Create the uploads folder if it doesn't exist
 if (!fs.existsSync(uploadDir)) {
@@ -31,14 +31,35 @@ const storage = multer.diskStorage({
   },
 });
 
-// ✅ Optional file type filter
+// ✅ Custom file filter per field
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
-  console.log(`🔍 File type: ${file.mimetype}`);
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
+  const field = file.fieldname;
+
+  const imageTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  const pdfTypes = ['application/pdf'];
+
+  if (field === 'featuredImage' || field === 'otherImages') {
+    if (imageTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(
+        new Error(
+          'Only image files (jpeg, png, webp) are allowed for vehicle images'
+        ),
+        false
+      );
+    }
+  } else if (field === 'billofsales') {
+    if ([...imageTypes, ...pdfTypes].includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(
+        new Error('Only image or PDF files are allowed for bill of sales'),
+        false
+      );
+    }
   } else {
-    cb(new Error('Only image files are allowed!'), false);
+    cb(new Error(`Unexpected upload field: ${field}`), false);
   }
 };
 
@@ -46,7 +67,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
 });
 
 export default upload;
