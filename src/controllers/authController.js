@@ -10,6 +10,7 @@ import {
 } from '../validations/auth.validation.js';
 //hello
 import otpService from '../utils/Otp.js';
+
 import errorConstants from '../utils/errors.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../functions/logger.js';
@@ -45,7 +46,7 @@ const register = async (req, res, next) => {
     value.email = value.email.toLowerCase();
     const newUser = await user.create(value);
 
-    const otp = otpService.generateOTP();
+    const otp = await otpService.generateOTP();
     await otpService.setOTP(newUser.email, otp, 'register');
 
     // store context in session:
@@ -53,6 +54,14 @@ const register = async (req, res, next) => {
     req.session.otpContext = 'register';
     req.session.otpVerified = false;
     req.session.expiresAt = Date.now() + 2 * 60 * 1000; // 2 minutes
+    await new Promise((resolve, reject) =>
+      req.session.save((err) => (err ? reject(err) : resolve()))
+    );
+    console.log('✅ Session set:', {
+      id: req.sessionID,
+      email: req.session.email,
+      context: req.session.otpContext,
+    });
 
     try {
       await sendEmail({
@@ -65,7 +74,7 @@ const register = async (req, res, next) => {
         },
       });
     } catch (emailError) {
-      otpService.deleteOTP(newUser.email);
+      await otpService.deleteOTP(newUser.email);
       return next(
         new ApiError(
           errorConstants.AUTHENTICATION.FAILED_TO_SEND_EMAIL ||
@@ -87,8 +96,7 @@ const register = async (req, res, next) => {
       userResponse,
       200,
       'User registered successfully',
-      res,
-      { sessionID: req.sessionID } // ✅ sessionID passed in options object
+      res
     );
   } catch (error) {
     logger.error({
@@ -193,7 +201,7 @@ const resendOtp = async (req, res, next) => {
     }
 
     // Prevent spamming OTP requests
-    const rateLimit = otpService.trackRequest(email);
+    const rateLimit = await otpService.trackRequest(email);
     if (!rateLimit.allowed) {
       logger.warn({
         message: `Too many OTP resend attempts: ${rateLimit.reason}`,
@@ -203,8 +211,8 @@ const resendOtp = async (req, res, next) => {
       return next(new ApiError(rateLimit.reason, 429));
     }
 
-    const otp = otpService.generateOTP();
-    otpService.setOTP(email, otp, context);
+    const otp = await otpService.generateOTP();
+    await otpService.setOTP(email, otp, context);
 
     // Reset OTP verification and expiry time
     req.session.otpVerified = false;
@@ -276,7 +284,7 @@ const forgotPassword = async (req, res, next) => {
       );
     }
 
-    const rateLimit = otpService.trackRequest(value.email);
+    const rateLimit = await otpService.trackRequest(value.email);
     if (!rateLimit.allowed) {
       logger.warn({
         message: `\n///Too many OTP requests: ${rateLimit.reason}///\n`,
@@ -286,8 +294,8 @@ const forgotPassword = async (req, res, next) => {
       return next(new ApiError(rateLimit.reason, 429));
     }
 
-    const otp = otpService.generateOTP();
-    otpService.setOTP(value.email, otp, 'forgotPassword');
+    const otp = await otpService.generateOTP();
+    await otpService.setOTP(value.email, otp, 'forgotPassword');
 
     req.session.email = value.email.toLowerCase();
     req.session.otpContext = 'forgotPassword';
@@ -305,7 +313,7 @@ const forgotPassword = async (req, res, next) => {
         },
       });
     } catch (emailError) {
-      otpService.deleteOTP(value.email);
+      await otpService.deleteOTP(value.email);
       req.session.destroy();
 
       throw new ApiError(
@@ -325,8 +333,7 @@ const forgotPassword = async (req, res, next) => {
       { email: value.email.toLowerCase() },
       200,
       'Password reset OTP sent successfully',
-      res,
-      { sessionID: req.sessionID }
+      res
     );
   } catch (error) {
     req.session.destroy(); // Clean up session on error
@@ -344,15 +351,27 @@ const forgotPassword = async (req, res, next) => {
 };
 const verifyOtp = async (req, res, next) => {
   try {
+    console.log('📥 Session received:', {
+      id: req.sessionID,
+      email: req.session.email,
+      context: req.session.otpContext,
+    });
+
     const { error, value } = verifyOtpSchema.validate(req.body, {
       abortEarly: false,
     });
     if (error) {
       return next(new ApiError(errorConstants.GENERAL.VALIDATION_ERROR, 400));
     }
+    console.log('Received body:', req.body);
+    console.log('Session data:', req.session);
+
     const { otp } = value;
     const email = req.session?.email;
     const context = req.session?.otpContext;
+    console.log('Session check — email:', req.session.email);
+    console.log('Session check — otpContext:', req.session.otpContext);
+    console.log('Session check — expiresAt:', req.session.expiresAt);
 
     if (!email || !context) {
       return next(
@@ -367,13 +386,19 @@ const verifyOtp = async (req, res, next) => {
       );
     }
 
-    const otpResult = await otpService.verifyOTP(
-      email.toLowerCase(),
-      otp,
-      context
-    );
-    if (!otpResult.valid) {
-      return next(new ApiError(otpResult.reason, 400));
+    try {
+      const otpResult = await otpService.verifyOTP(
+        email.toLowerCase(),
+        otp,
+        context
+      );
+      if (!otpResult.valid) {
+        console.log('❌ OTP not valid:', otpResult.reason);
+        return next(new ApiError(otpResult.reason, 400));
+      }
+    } catch (err) {
+      console.error('❌ OTP verification error:', err);
+      return next(new ApiError('Internal OTP verification failure.', 500));
     }
 
     // Mark OTP verified for this context:

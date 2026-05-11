@@ -1,138 +1,117 @@
-const otpStore = new Map();
-const requestStore = new Map();
+import { getRedisClient } from '../config/redis.js';
 
-// Generate a unique 4-digit OTP as string
+// Constants (configurable via env vars)
+const OTP_PREFIX = 'otp:';
+const REQ_PREFIX = 'otp-req:';
+const OTP_EXPIRY_SECONDS = 120; // 2 minutes
+const REQ_WINDOW_SECONDS = 15 * 60; // 15 minutes
+const REQ_WAIT_MS = 30 * 1000; // 30 seconds between requests
+const MAX_ATTEMPTS = 3; // Max OTP requests per window
+const LOCKOUT_MS = 60 * 1000; // 1-minute lockout after max attempts
+
+// Helper functions
+const getOTPKey = (email) => `${OTP_PREFIX}${email.toLowerCase()}`;
+const getReqKey = (email) => `${REQ_PREFIX}${email.toLowerCase()}`;
+
 const generateOTP = () => {
-  let otp;
-  do {
-    otp = Math.floor(1000 + Math.random() * 9000).toString();
-  } while (Array.from(otpStore.values()).some((stored) => stored.otp === otp));
-  return otp;
+  // Use a stronger 6-digit alphanumeric OTP
+  return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Save OTP with expiration (2 minutes)
-const setOTP = (email, otp) => {
-  otpStore.set(email.toLowerCase(), {
-    otp,
-    expiresAt: Date.now() + 2 * 60 * 1000, // 2 minutes
-  });
+const setOTP = async (email, otp) => {
+  const redis = getRedisClient();
+  const key = getOTPKey(email);
+  await redis.setEx(key, OTP_EXPIRY_SECONDS, otp);
 };
 
-// Retrieve OTP details for verification
-const getOTP = (email) => otpStore.get(email.toLowerCase());
+const getOTP = async (email) => {
+  const redis = getRedisClient();
+  const key = getOTPKey(email);
+  return await redis.get(key);
+};
 
-// Delete OTP after use or expiry
-const deleteOTP = (email) => otpStore.delete(email.toLowerCase());
+const deleteOTP = async (email) => {
+  const redis = getRedisClient();
+  const key = getOTPKey(email);
+  await redis.del(key);
+};
 
-// Track OTP request attempts & apply rate limits
-const trackRequest = (email) => {
-  email = email.toLowerCase();
+const verifyOTP = async (email, inputOtp) => {
+  const storedOtp = await getOTP(email);
+  if (!storedOtp) {
+    return {
+      valid: false,
+      code: 'OTP_EXPIRED',
+      message: 'OTP expired or not found',
+    };
+  }
+  if (storedOtp !== inputOtp.toString()) {
+    return { valid: false, code: 'OTP_INVALID', message: 'Invalid OTP' };
+  }
+  await deleteOTP(email);
+  return {
+    valid: true,
+    code: 'OTP_VALID',
+    message: 'OTP verified successfully',
+  };
+};
+
+const trackRequest = async (email) => {
+  const redis = getRedisClient();
+  const key = getReqKey(email);
   const now = Date.now();
 
-  const maxAttempts = 2;
-  const waitBetweenMs = 30 * 1000; // 2 minutes between requests
-  const lockoutMs = 60 * 1000; // 15 minutes lockout after max attempts
+  // Fetch or initialize request record
+  const data = await redis.get(key);
+  let record = data ? JSON.parse(data) : { attempts: [], lockoutUntil: null };
 
-  let requests = requestStore.get(email) || {
-    attempts: [],
-    lockoutUntil: null,
-  };
-
-  // Reset lockout if expired
-  if (requests.lockoutUntil && now > requests.lockoutUntil) {
-    requests = { attempts: [], lockoutUntil: null };
+  // Reset if lockout expired
+  if (record.lockoutUntil && now >= record.lockoutUntil) {
+    record = { attempts: [], lockoutUntil: null };
   }
 
-  // If locked out, deny request
-  if (requests.lockoutUntil) {
+  // Check if locked out
+  if (record.lockoutUntil && now < record.lockoutUntil) {
+    const remainingMs = record.lockoutUntil - now;
     return {
       allowed: false,
-      reason: `Too many OTP requests. Try again in ${Math.ceil(
-        (requests.lockoutUntil - now) / 60000
-      )} minute(s).`,
+      code: 'LOCKED_OUT',
+      message: `Too many requests. Try again in ${Math.ceil(remainingMs / 1000)} seconds.`,
     };
   }
 
-  // Remove attempts older than lockout window
-  requests.attempts = requests.attempts.filter(
-    (time) => now - time < lockoutMs
+  // Filter attempts within the last 15 minutes
+  record.attempts = record.attempts.filter(
+    (time) => now - time < REQ_WINDOW_SECONDS * 1000
   );
 
-  // Check cooldown between requests
-  if (requests.attempts.length > 0) {
-    const lastRequestTime = requests.attempts[requests.attempts.length - 1];
-    if (now - lastRequestTime < waitBetweenMs) {
-      return {
-        allowed: false,
-        reason: `Please wait ${Math.ceil(
-          (waitBetweenMs - (now - lastRequestTime)) / 60000
-        )} minute(s) before requesting another OTP.`,
-      };
-    }
-  }
-
-  // Lock out if too many attempts
-  if (requests.attempts.length >= maxAttempts) {
-    requests.lockoutUntil = now + lockoutMs;
-    requestStore.set(email, requests);
+  // Check wait time between requests
+  const lastAttempt = record.attempts.at(-1);
+  if (lastAttempt && now - lastAttempt < REQ_WAIT_MS) {
+    const remainingMs = REQ_WAIT_MS - (now - lastAttempt);
     return {
       allowed: false,
-      reason: `Too many OTP requests. Try again in ${Math.ceil(
-        lockoutMs / 60000
-      )} minute(s).`,
+      code: 'TOO_SOON',
+      message: `Please wait ${Math.ceil(remainingMs / 1000)} seconds before requesting another OTP.`,
     };
   }
 
-  // Record current attempt and allow request
-  requests.attempts.push(now);
-  requestStore.set(email, requests);
-  return { allowed: true };
+  // Enforce max attempts
+  if (record.attempts.length >= MAX_ATTEMPTS) {
+    record.lockoutUntil = now + LOCKOUT_MS;
+    await redis.setEx(key, REQ_WINDOW_SECONDS, JSON.stringify(record));
+    return {
+      allowed: false,
+      code: 'MAX_ATTEMPTS',
+      message: `Too many requests. Try again in ${LOCKOUT_MS / 1000} seconds.`,
+    };
+  }
+
+  // Allow request
+  record.attempts.push(now);
+  await redis.setEx(key, REQ_WINDOW_SECONDS, JSON.stringify(record));
+  return { allowed: true, code: 'ALLOWED', message: 'OTP request allowed' };
 };
-
-// Verify OTP validity
-const verifyOTP = (email, inputOtp) => {
-  email = email.toLowerCase();
-  const stored = otpStore.get(email);
-  if (!stored) return { valid: false, reason: 'OTP not found or expired' };
-
-  if (Date.now() > stored.expiresAt) {
-    otpStore.delete(email);
-    return { valid: false, reason: 'OTP expired' };
-  }
-
-  if (stored.otp !== inputOtp.toString()) {
-    return { valid: false, reason: 'Invalid OTP' };
-  }
-
-  // OTP is valid — delete it to prevent reuse
-  otpStore.delete(email);
-  return { valid: true };
-};
-
-// Cleanup expired OTPs and request logs regularly
-const cleanupExpired = () => {
-  const now = Date.now();
-  const lockoutMs = 15 * 60 * 1000;
-
-  // Cleanup expired OTPs
-  for (const [email, { expiresAt }] of otpStore.entries()) {
-    if (now > expiresAt) {
-      otpStore.delete(email);
-    }
-  }
-
-  // Cleanup request attempts and expired lockouts
-  for (const [email, { attempts, lockoutUntil }] of requestStore.entries()) {
-    if (!lockoutUntil && attempts.every((time) => now - time > lockoutMs)) {
-      requestStore.delete(email);
-    } else if (lockoutUntil && now > lockoutUntil) {
-      requestStore.set(email, { attempts: [], lockoutUntil: null });
-    }
-  }
-};
-
-// Run cleanup every 5 minutes
-setInterval(cleanupExpired, 5 * 60 * 1000);
 
 export default {
   generateOTP,

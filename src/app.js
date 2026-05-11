@@ -12,29 +12,34 @@ import ApiErrorMiddleware from './middleware/ApiError.middleware.js';
 import requestValidator from './middleware/requestValidator.middleware.js';
 import router from './router/index.js';
 import cookieParser from 'cookie-parser';
-import sessionFromHeader from './middleware/sessionFromHeader.js';
+
 const app = express();
 
 const startServer = async () => {
   try {
     await connectRedis(); // ✅ Redis connected
+    app.set('trust proxy', 1);
 
-    // ✅ Middleware setup
     app.use(
       cors({
-        origin: 'http://localhost:3000',
+        origin: 'https://liquid-dms-admin-panel.vercel.app',
         credentials: true,
       })
     );
     app.use(cookieParser());
-    app.use(getSessionMiddleware());
-    app.use(sessionFromHeader(connectRedis()));
+    app.use((req, res, next) => {
+      console.log('🍪 Incoming cookies:', req.headers.cookie);
+      next();
+    });
+    app.use(express.urlencoded({ extended: true }));
+    app.use(express.json());
     app.use(
       '/uploads',
       express.static(path.join(process.cwd(), 'src', 'uploads'))
     );
-    app.use(express.urlencoded({ extended: true }));
-    app.use(express.json());
+    // ✅ Middleware setup
+    const sessionMiddleware = await getSessionMiddleware(); // ✅ wait for the middleware
+    app.use(sessionMiddleware); // ✅ apply it to Express
 
     app.use(requestValidator);
 
@@ -43,6 +48,7 @@ const startServer = async () => {
         message: 'OK',
       });
     });
+
     app.use('/', router);
     app.use(ApiErrorMiddleware);
   } catch (err) {

@@ -1,4 +1,4 @@
-import logger from "../functions/logger.js";
+import logger from '../functions/logger.js';
 
 const ErrorHandler = (message, statusCode = 500, req, res, error = null) => {
   const errorData = {
@@ -14,7 +14,7 @@ const ErrorHandler = (message, statusCode = 500, req, res, error = null) => {
 
   return res.status(statusCode).json({
     success: false,
-    error: process.env.NODE_ENV === "development" ? errorData : message,
+    error: process.env.NODE_ENV === 'development' ? errorData : message,
   });
 };
 
