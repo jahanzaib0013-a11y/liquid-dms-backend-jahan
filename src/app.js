@@ -27,19 +27,19 @@ const startServer = async () => {
       })
     );
     app.use(cookieParser());
+    app.use(express.urlencoded({ extended: true }));
+    app.use(express.json());
+    const sessionMiddleware = await getSessionMiddleware(); // ✅ wait for the middleware
+    app.use(sessionMiddleware); // ✅ apply it to Express
     app.use((req, res, next) => {
       console.log('🍪 Incoming cookies:', req.headers.cookie);
       next();
     });
-    app.use(express.urlencoded({ extended: true }));
-    app.use(express.json());
     app.use(
       '/uploads',
       express.static(path.join(process.cwd(), 'src', 'uploads'))
     );
     // ✅ Middleware setup
-    const sessionMiddleware = await getSessionMiddleware(); // ✅ wait for the middleware
-    app.use(sessionMiddleware); // ✅ apply it to Express
 
     app.use(requestValidator);
 
