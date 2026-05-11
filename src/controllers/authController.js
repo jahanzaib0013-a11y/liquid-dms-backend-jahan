@@ -1,19 +1,22 @@
 import User from '../models/user.js';
-import jwt from 'jsonwebtoken';
+
 import otpUtils from '../utils/Otp.js';
 import sendEmail from '../utils/sendEmail.js';
 import SuccessHandler from '../utils/SuccessHandler.js';
-
+import errorConstants from '../utils/errors.js';
+import ApiError from '../utils/ApiError.js';
+import generateAndSetJwtCookie from '../utils/jwt.js';
 const register = async (req, res, next) => {
   try {
     const { fullname, email, password } = req.body;
 
-    const userExists = await User.findOne({ email });
-    if (userExists)
-      return res.status(400).json({ message: 'User already exists' });
-
-    const track = await otpUtils.trackRequest(email);
-    if (!track.allowed) return res.status(429).json({ message: track.message });
+    const userExists = await User.findOne({ email }).lean();
+    if (userExists) {
+      return next(
+        new ApiError(errorConstants.AUTHENTICATION.USER_ALREADY_EXISTS)
+      );
+    }
+    await otpUtils.clearOtpCache(email);
 
     const otp = otpUtils.generateOTP();
     await otpUtils.setOTP(email, otp, 'register');
@@ -47,14 +50,25 @@ const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
 
-    const user = await User.findOne({ email });
-    if (!user || !user.isVerified)
-      return res
-        .status(404)
-        .json({ message: 'Account not found or not verified' });
+    const user = await User.findOne({ email }).lean();
+    if (!user) {
+      return next(
+        new ApiError(errorConstants.AUTHENTICATION.USER_NOT_FOUND, 404)
+      );
+    }
 
-    const track = await otpUtils.trackRequest(email);
-    if (!track.allowed) return res.status(429).json({ message: track.message });
+    if (!user.isVerified) {
+      return next(
+        new ApiError(errorConstants.AUTHENTICATION.USER_NOT_VERIFIED, 403)
+      );
+    }
+
+    const isFirstTime = !(await otpUtils.hasRequestedBefore(email));
+    if (!isFirstTime) {
+      const track = await otpUtils.trackRequest(email);
+      if (!track.allowed)
+        return res.status(429).json({ message: track.message });
+    }
 
     const otp = otpUtils.generateOTP();
     await otpUtils.setOTP(email, otp, 'forgot');
@@ -85,8 +99,11 @@ const verifyOtp = async (req, res, next) => {
     const { email, otp } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
+    if (!user) {
+      return next(
+        new ApiError(errorConstants.AUTHENTICATION.USER_NOT_VERIFIED, 403)
+      );
+    }
     const type = !user.isVerified ? 'register' : 'forgot';
     const result = await otpUtils.verifyOTP(email, otp, type);
 
@@ -126,8 +143,12 @@ const resendOtp = async (req, res, next) => {
   try {
     const { email } = req.body;
 
-    const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    const user = await User.findOne({ email }).lean();
+    if (!user) {
+      return next(
+        new ApiError(errorConstants.AUTHENTICATION.USER_NOT_FOUND, 404)
+      );
+    }
 
     const type = !user.isVerified ? 'register' : 'forgot';
     const subject =
@@ -167,13 +188,15 @@ const resetPassword = async (req, res, next) => {
     const { email, newPassword } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user)
+      return next(
+        new ApiError(errorConstants.AUTHENTICATION.USER_NOT_FOUND, 404)
+      );
 
     if (!user.isResetOtpVerified)
-      return res
-        .status(403)
-        .json({ message: 'Please verify OTP before resetting password.' });
-
+      return next(
+        new ApiError(errorConstants.AUTHENTICATION.OTP_NOT_VERIFIED, 403)
+      );
     user.password = newPassword;
     user.isResetOtpVerified = false;
     await user.save();
@@ -199,22 +222,21 @@ const login = async (req, res, next) => {
 
     const user = await User.findOne({ email });
     if (!user || !(await user.comparePassword(password)))
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return next(
+        new ApiError(errorConstants.AUTHENTICATION.INVALID_CREDENTIALS, 404)
+      );
 
     if (!user.isVerified)
-      return res
-        .status(403)
-        .json({ message: 'Please verify your email first.' });
-
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: '7d',
-    });
+      return next(
+        new ApiError(errorConstants.AUTHENTICATION.USER_NOT_VERIFIED, 403)
+      );
     const userResponse = {
       email: user.email,
       fullname: user.fullname,
-      token,
       vendors: user.vendors, // Assuming vendorId is part of the User model
     };
+    const token = generateAndSetJwtCookie(userResponse, res); // ✅ pass userResponse here
+    userResponse.token = token;
     return SuccessHandler(
       userResponse,
       200,

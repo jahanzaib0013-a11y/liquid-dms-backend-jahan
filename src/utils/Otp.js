@@ -5,9 +5,9 @@ const OTP_PREFIX = 'otp:';
 const REQ_PREFIX = 'otp-req:';
 const OTP_EXPIRY_SECONDS = 120; // 2 minutes
 const REQ_WINDOW_SECONDS = 15 * 60; // 15 minutes
-const REQ_WAIT_MS = 30 * 1000; // 30 seconds between requests
+const REQ_WAIT_MS = 2 * 60 * 1000; // 2 minutes between requests
 const MAX_ATTEMPTS = 3; // Max OTP requests per window
-const LOCKOUT_MS = 60 * 1000; // 1-minute lockout after max attempts
+const LOCKOUT_MS = 15 * 60 * 1000; // 1-minute lockout after max attempts
 
 // Type-aware Redis key for OTP (register, forgot, etc.)
 const getOTPKey = (email, type) =>
@@ -48,7 +48,7 @@ const verifyOTP = async (email, inputOtp, type) => {
     return {
       valid: false,
       code: 'OTP_EXPIRED',
-      message: 'OTP expired or not found',
+      message: 'Your OTP has expired. Please request a new one.',
     };
   }
 
@@ -129,6 +129,20 @@ const trackRequest = async (email) => {
     message: 'OTP request allowed',
   };
 };
+const clearOtpCache = async (email) => {
+  const redis = getRedisClient();
+  const emailKey = email.toLowerCase();
+
+  await redis.del(`otp:register:${emailKey}`);
+  await redis.del(`otp:forgot:${emailKey}`);
+  await redis.del(`otp-req:${emailKey}`);
+};
+const hasRequestedBefore = async (email) => {
+  const redis = getRedisClient();
+  const key = getReqKey(email);
+  const data = await redis.get(key);
+  return !!data; // true if exists
+};
 
 export default {
   generateOTP,
@@ -137,4 +151,6 @@ export default {
   deleteOTP,
   verifyOTP,
   trackRequest,
+  clearOtpCache,
+  hasRequestedBefore,
 };
