@@ -127,11 +127,10 @@ const mpgValidator = Joi.number().min(0).messages({
   'number.base': errorConstants.VEHICLE.MPG_MUST_BE_NUMBER,
   'number.min': errorConstants.VEHICLE.MPG_NEGATIVE,
 });
-const towCapacityValidator = Joi.string()
-  .pattern(/^\d+,?\d*\s?(lbs|kg)$/)
-  .messages({
-    'string.pattern.base': errorConstants.VEHICLE.TOW_CAPACITY_INVALID,
-  });
+const towCapacityValidator = Joi.number().min(0).messages({
+  'number.base': errorConstants.VEHICLE.TOW_CAPACITY_MUST_BE_NUMBER,
+  'number.min': errorConstants.VEHICLE.TOW_CAPACITY_NEGATIVE,
+});
 const passengersValidator = Joi.number().integer().min(1).max(100).messages({
   'number.base': errorConstants.VEHICLE.PASSENGERS_MUST_BE_NUMBER,
   'number.min': errorConstants.VEHICLE.PASSENGERS_TOO_LOW,
@@ -298,7 +297,7 @@ const vendorInfoSchema = Joi.object({
 // 🔹 Final Schema
 export const addVehicleSchema = Joi.object({
   basicDetails: Joi.object({
-    vehicleTitle: requiredString('VEHICLE_TITLE'),
+    vehicleTitle: optionalString('VEHICLE_TITLE'),
     vin: requiredString('VIN'),
     make: makeValidator,
     model: modelValidator,
