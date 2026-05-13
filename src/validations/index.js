@@ -20,6 +20,7 @@ import {
   getVendorByIdSchema,
 } from './Vendor.validation.js';
 import { addFloorPlanSchema } from './FloorPlan.validation.js';
+import { addCustomerSchema } from './Customer.validation.js';
 const validationSchemas = {
   // Authentication
 
@@ -34,7 +35,7 @@ const validationSchemas = {
   //Vendor
   '/vendor/add-vendor': { POST: addVendorSchema },
   '/vendor/vendors': { GET: null },
-  '/vendor/vendorbyId': { GET: getVendorByIdSchema },
+  '/vendor': { GET: getVendorByIdSchema },
   '/vendor/edit-vendor': { PUT: editVendorSchema },
   '/vendor/delete-vendor': { DELETE: getVendorByIdSchema },
   //Vehicle
@@ -45,11 +46,17 @@ const validationSchemas = {
   '/vehicle/previous-owner': { PUT: addVehiclePreviousOwnerSchema },
   '/vehicle/notes': { POST: addVehicleNotesSchema },
 
-  '/floorPlan/add-floor': { POST: addFloorPlanSchema },
   '/vehicle/complete': { PATCH: null },
   '/vehicle/vehicles': { GET: null },
-  '/vehicle/vehiclebyId': { GET: null },
+  '/vehicle': { GET: null },
   '/vehicle/deletebyId': { DELETE: null },
+  //FloorPlan
+  '/floorPlan/add-floor': { POST: addFloorPlanSchema },
+  '/floorPlan': { GET: null },
+  '/floorPlan/edit-floor': { PUT: null },
+  '/floorPlan/floors': { GET: null },
+  //Customer
+  '/customer/add-customer': { POST: addCustomerSchema },
 };
 
 export { validationSchemas };
