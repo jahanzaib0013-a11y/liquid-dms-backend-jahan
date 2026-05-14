@@ -112,11 +112,10 @@ const engineCylindersValidator = Joi.number()
     'number.max': errorConstants.VEHICLE.CYLINDERS_TOO_HIGH,
     'number.integer': errorConstants.VEHICLE.CYLINDERS_INTEGER,
   });
-const engineSizeValidator = Joi.string()
-  .pattern(/^\d+\.\d+L$/)
-  .messages({
-    'string.pattern.base': errorConstants.VEHICLE.ENGINE_SIZE_INVALID,
-  });
+const engineSizeValidator = Joi.number().positive().messages({
+  'number.base': errorConstants.VEHICLE.ENGINE_SIZE_INVALID,
+  'number.positive': errorConstants.VEHICLE.ENGINE_SIZE_INVALID,
+});
 const fuelTypeValidator = enumValidator('FUEL_TYPE', [
   'Gas',
   'Diesel',
@@ -183,23 +182,23 @@ const interiorColorValidator = enumValidator('INTERIOR_COLOR', [
   'Red',
   'Blue',
 ]);
-const stateValidator = enumValidator('STATE', [
-  'Alabama',
-  'Alaska',
-  'Arizona',
-  'Arkansas',
-  'California',
-  'Colorado',
-  'Connecticut',
-  'Delaware',
-  'Florida',
-  'Georgia',
-  'Hawaii',
-  'Idaho',
-  'Illinois',
-  'Indiana',
-  'Iowa',
-]);
+// const stateValidator = enumValidator('STATE', [
+//   'Alabama',
+//   'Alaska',
+//   'Arizona',
+//   'Arkansas',
+//   'California',
+//   'Colorado',
+//   'Connecticut',
+//   'Delaware',
+//   'Florida',
+//   'Georgia',
+//   'Hawaii',
+//   'Idaho',
+//   'Illinois',
+//   'Indiana',
+//   'Iowa',
+// ]);
 // const countryValidator = enumValidator('COUNTRY', [
 //   'USA(United States of America)',
 //   'Canada',
@@ -262,7 +261,7 @@ const vendorInfoSchema = Joi.object({
   }),
   state: Joi.when('isExistingVendor', {
     is: false,
-    then: stateValidator,
+    then: optionalString('STATE_TITLE_IN'),
     otherwise: Joi.forbidden(),
   }),
   primaryContactNumber: Joi.when('isExistingVendor', {
@@ -275,7 +274,11 @@ const vendorInfoSchema = Joi.object({
     then: requiredString('CONTACT_PERSON'),
     otherwise: Joi.forbidden(),
   }),
-  alternativeContactNumber: optionalString('ALTERNATIVE_CONTACT_NUMBER'),
+  alternativeContactNumber: Joi.when('isExistingVendor', {
+    is: false,
+    then: optionalString('ALTERNATIVE_CONTACT_NUMBER'),
+    otherwise: Joi.forbidden(),
+  }),
   email: Joi.when('isExistingVendor', {
     is: false,
     then: Joi.string().email().required().messages({
@@ -284,14 +287,26 @@ const vendorInfoSchema = Joi.object({
     }),
     otherwise: Joi.forbidden(),
   }),
-  accountNumber: optionalString('ACCOUNT_NUMBER'),
+  accountNumber: Joi.when('isExistingVendor', {
+    is: false,
+    then: optionalString('ACCOUNT_NUMBER'),
+    otherwise: Joi.forbidden(),
+  }),
   taxIdOrSSN: Joi.when('isExistingVendor', {
     is: false,
     then: requiredString('TAX_ID_OR_SSN'),
     otherwise: Joi.forbidden(),
   }),
-  notes: optionalString('NOTES'),
-  billofsales: optionalString('BILL_OF_SALES'),
+  notes: Joi.when('isExistingVendor', {
+    is: false,
+    then: optionalString('NOTES'),
+    otherwise: Joi.forbidden(),
+  }),
+  billofsales: Joi.when('isExistingVendor', {
+    is: false,
+    then: optionalString('BILL_OF_SALES'),
+    otherwise: Joi.forbidden(),
+  }),
 });
 
 // 🔹 Final Schema

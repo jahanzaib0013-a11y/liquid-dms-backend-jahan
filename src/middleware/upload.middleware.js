@@ -25,7 +25,8 @@ const storage = multer.diskStorage({
   },
   filename: function (req, file, cb) {
     const ext = path.extname(file.originalname);
-    const finalName = Date.now() + '-' + file.fieldname + ext;
+    const cleanField = file.fieldname.replace(/\[\]/g, '');
+    const finalName = Date.now() + '-' + cleanField + ext;
     console.log(`📝 Filename set: ${finalName}`);
     cb(null, finalName);
   },
@@ -38,7 +39,11 @@ const fileFilter = (req, file, cb) => {
   const imageTypes = ['image/jpeg', 'image/png', 'image/webp'];
   const pdfTypes = ['application/pdf'];
 
-  if (field === 'featuredImage' || field === 'otherImages') {
+  if (
+    field === 'featuredImage' ||
+    field === 'otherImages' ||
+    field === 'otherImages[]'
+  ) {
     if (imageTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
