@@ -437,6 +437,21 @@ export const addVehiclePreviousOwner = async (req, res, next) => {
       return next(new ApiError('Vehicle not found', 404));
     }
 
+    // Merge files from both field names
+    const transferDocs = [
+      ...(req.files?.transferDocument || []),
+      ...(req.files?.['transferDocument[]'] || []),
+    ];
+    const transferDocUrls = transferDocs.map((f) => toPublicUrl(f.path));
+
+    // Set inside PreviousOwnerDetail
+    if (!updatedVehicle.PreviousOwnerDetail) {
+      updatedVehicle.PreviousOwnerDetail = {};
+    }
+    updatedVehicle.PreviousOwnerDetail.transferDocuments = transferDocUrls;
+
+    await updatedVehicle.save();
+
     // 6. Reorder vehicle object for response
     const vehicleObject = updatedVehicle.toObject();
     const responseVehicle = {
@@ -504,6 +519,22 @@ export const addVehicleNotes = async (req, res, next) => {
     if (!updatedVehicle) {
       return next(new ApiError('Vehicle not found', 404));
     }
+
+    // Merge files from both field names
+    const uploadedNotesFiles = [
+      ...(req.files?.uploadedNotes || []),
+      ...(req.files?.['uploadedNotes[]'] || []),
+    ];
+    const uploadedNotesUrls = uploadedNotesFiles.map((f) =>
+      toPublicUrl(f.path)
+    );
+
+    // Set inside OtherNotes
+    if (!updatedVehicle.OtherNotes) {
+      updatedVehicle.OtherNotes = {};
+    }
+    updatedVehicle.OtherNotes.uploadedNotes = uploadedNotesUrls;
+    await updatedVehicle.save();
 
     // 6. Reorder vehicle object for response
     const vehicleObject = updatedVehicle.toObject();

@@ -48,9 +48,9 @@ const styleValidator = enumValidator('STYLE', [
   'SUV',
   'Van',
   'Convertible',
-  'Crossover',
+  'Pickup Truck',
+  'Wagon',
   'Minivan',
-  'Pickup',
   'Roadster',
 ]);
 const bodyTypeValidator = enumValidator('BODY_TYPE', ['2DR', '4DR']);
@@ -85,7 +85,7 @@ const certifiedValidator = enumValidator('CERTIFIED', ['Yes', 'No']);
 const transmissionValidator = enumValidator('TRANSMISSION', [
   'Automatic',
   'Manual',
-  'CVT',
+  'CVT (Continuously Variable Transmission)',
   'Dual-Clutch',
   'Tiptronic',
   'Semi-Automatic',
@@ -152,25 +152,22 @@ const mileageIsValidator = enumValidator('MILEAGE_STATUS', [
   'Not Actual',
   'Exempt',
   'Unknown',
-  'TMU',
+  'TMU (True Mileage Unknown)',
 ]);
 const colorValidator = enumValidator('COLOR', [
-  'Black',
   'White',
-  'Gray',
+  'Black',
   'Silver',
   'Red',
   'Blue',
   'Green',
   'Yellow',
-  'Orange',
+  'Gray',
   'Brown',
+  'Orange',
   'Gold',
   'Maroon',
   'Beige',
-  'Purple',
-  'Pink',
-  'Other',
 ]);
 const interiorColorValidator = enumValidator('INTERIOR_COLOR', [
   'Black',
@@ -451,8 +448,8 @@ export const AddVehicleSalesSchema = Joi.object({
     Monthly: Joi.number().min(0).optional(),
   }).optional(),
   Dates: Joi.object({
-    Arrival: Joi.date().optional(),
-    ReadytoSell: Joi.date().optional(),
+    Arrival: Joi.date(),
+    ReadytoSell: Joi.date().allow('', null).optional(),
   }).optional(),
   WindowSheetOptions: Joi.object({
     price: Joi.boolean().optional(),
@@ -476,71 +473,17 @@ export const AddVehicleSalesSchema = Joi.object({
   });
 export const addVehiclePreviousOwnerSchema = Joi.object({
   PreviousOwnerDetail: Joi.object({
-    OwnerName: optionalString('OWNER_NAME'),
-    OwnershipType: enumValidator('OWNERSHIP_TYPE', [
-      'Individual',
-      'Company-Owned',
-      'Leased',
-      'Financed',
-      'Fleet',
-      'Rental',
-      'Government-Owned',
-    ]),
-    ContactNumber: optionalString('CONTACT_NUMBER'),
-    Email: Joi.string().email().allow('', null).messages({
-      'string.email': errorConstants.VEHICLE.EMAIL_INVALID,
-    }),
-    Address: optionalString('ADDRESS'),
-    StateofRegistration: optionalString('STATE_OF_REGISTRATION').valid(
-      'Alabama',
-      'Alaska',
-      'Arizona',
-      'Arkansas',
-      'California',
-      'Colorado',
-      'Connecticut',
-      'Delaware',
-      'Florida',
-      'Georgia',
-      'Hawaii',
-      'Idaho',
-      'Illinois',
-      'Indiana',
-      'Iowa',
-      'Kansas',
-      'Kentucky',
-      'Louisiana',
-      'Maine',
-      'Maryland',
-      'Massachusetts',
-      'Michigan',
-      'Minnesota',
-      'Mississippi',
-      'Missouri',
-      'Montana',
-      'Nebraska',
-      'Nevada',
-      'New Hampshire',
-      'New Jersey',
-      'New Mexico',
-      'New York',
-      'North Carolina',
-      'North Dakota',
-      'Ohio',
-      'Oklahoma',
-      'Oregon',
-      'Pennsylvania',
-      'Rhode Island',
-      'South Carolina',
-      'South Dakota',
-      'Tennessee',
-      'Texas',
-      'Utah'
-    ),
-    OwnershipStartDate: Joi.date().allow(null),
-    OwnershipEndDate: Joi.date().allow(null),
-    PrincipleUseofVehicle: optionalString('PRINCIPLE_USE_OF_VEHICLE'),
-    Notes: optionalString('NOTES'),
+    OwnerName: Joi.string().allow('', null).optional(),
+    OwnershipType: Joi.string().allow('', null).optional(),
+    ContactNumber: Joi.string().allow('', null).optional(),
+    Email: Joi.string().email().allow('', null).optional(),
+    Address: Joi.string().allow('', null).optional(),
+    StateofRegistration: Joi.string().allow('', null).optional(),
+    OwnershipStartDate: Joi.date().allow('', null).optional(),
+    OwnershipEndDate: Joi.date().allow('', null).optional(),
+    PrincipleUseofVehicle: Joi.string().allow('', null).optional(),
+    Notes: Joi.string().allow('', null).optional(),
+    transferDocuments: Joi.array().items(Joi.string().uri()).optional(),
   }).optional(),
   values: Joi.object({
     MarketValue: Joi.number().min(0).optional(),
@@ -549,20 +492,10 @@ export const addVehiclePreviousOwnerSchema = Joi.object({
 });
 export const addVehicleNotesSchema = Joi.object({
   OtherNotes: Joi.object({
-    NoteCategory: Joi.string()
-      .valid(
-        'Buyer Inquiry',
-        'Follow-up',
-        'New Lead',
-        'Call Scheduled',
-        'Showroom Visit'
-      )
-      .optional()
-      .messages({
-        'any.only': errorConstants.VEHICLE.NOTE_CATEGORY_INVALID,
-      }),
-    NoteTitle: optionalString('NOTE_TITLE'),
-    NoteDetails: optionalString('NOTE_DETAILS'),
+    NoteCategory: Joi.string().allow('', null).optional(),
+    NoteTitle: Joi.string().allow('', null).optional(),
+    NoteDetails: Joi.string().allow('', null).optional(),
+    uploadedNotes: Joi.array().items(Joi.string().uri()).optional(),
   }).optional(),
 });
 
