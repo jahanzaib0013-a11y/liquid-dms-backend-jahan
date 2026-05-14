@@ -6,50 +6,78 @@ import SuccessHandler from '../utils/SuccessHandler.js';
 import errorConstants from '../utils/errors.js';
 import ApiError from '../utils/ApiError.js';
 import generateAndSetJwtCookie from '../utils/jwt.js';
+
+// Helper function to normalize email consistently
+const normalizeEmail = (email) => {
+  return email ? email.toLowerCase().trim() : '';
+};
+
 const register = async (req, res, next) => {
   try {
     const { fullname, email, password } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
-    const emailLower = email.toLowerCase().trim();
-    const userExists = await User.findOne({ email: emailLower });
+    // Use case-insensitive email lookup to handle existing users with different casing
+    const userExists = await User.findOne({
+      email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') },
+    });
 
     if (userExists) {
       if (userExists.isVerified) {
+        // User exists and is verified: return success with user info
         return next(
-          new ApiError(errorConstants.AUTHENTICATION.USER_ALREADY_EXISTS)
+          new ApiError(errorConstants.AUTHENTICATION.USER_ALREADY_EXISTS, 401)
         );
       } else {
-        await otpUtils.clearOtpCache(email);
-
+        // User exists but is NOT verified: resend OTP
+        await otpUtils.clearOtpCache(normalizedEmail);
         const otp = otpUtils.generateOTP();
-        await otpUtils.setOTP(email, otp, 'register');
-
+        await otpUtils.setOTP(normalizedEmail, otp, 'register');
         await sendEmail({
-          to: email,
+          to: normalizedEmail,
           subject: 'Verify Your Email',
           templateName: 'otpTemplate',
           replacements: { fullname: fullname || 'User', otp },
         });
-
-        const newUser = new User({
-          fullname,
-          email,
-          password,
-          isVerified: false,
-        });
-        await newUser.save();
         const userResponse = {
-          fullname: newUser.fullname,
-          email: newUser.email,
+          fullname: userExists.fullname,
+          email: userExists.email,
         };
         return SuccessHandler(
           userResponse,
-
           200,
-          'User registed successfully',
+          'You are not Verified. Please complete registration.',
           res
         );
       }
+    } else {
+      // User does not exist: create new user and send OTP
+      await otpUtils.clearOtpCache(normalizedEmail);
+      const otp = otpUtils.generateOTP();
+      await otpUtils.setOTP(normalizedEmail, otp, 'register');
+      await sendEmail({
+        to: normalizedEmail,
+        subject: 'Verify Your Email',
+        templateName: 'otpTemplate',
+        replacements: { fullname: fullname || 'User', otp },
+      });
+      const newUser = new User({
+        fullname,
+        email: normalizedEmail,
+        password,
+        isVerified: false,
+      });
+      await newUser.save();
+      const userResponse = {
+        fullname: newUser.fullname,
+        email: newUser.email,
+      };
+      return SuccessHandler(
+        userResponse,
+        201,
+        'User registered successfully',
+        res
+      );
     }
   } catch (err) {
     next(err);
@@ -58,8 +86,12 @@ const register = async (req, res, next) => {
 const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
-    const user = await User.findOne({ email }).lean();
+    // Use case-insensitive email lookup
+    const user = await User.findOne({
+      email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') },
+    }).lean();
     if (!user) {
       return next(
         new ApiError(errorConstants.AUTHENTICATION.USER_NOT_FOUND, 404)
@@ -72,18 +104,18 @@ const forgotPassword = async (req, res, next) => {
       );
     }
 
-    const isFirstTime = !(await otpUtils.hasRequestedBefore(email));
+    const isFirstTime = !(await otpUtils.hasRequestedBefore(normalizedEmail));
     if (!isFirstTime) {
-      const track = await otpUtils.trackRequest(email);
+      const track = await otpUtils.trackRequest(normalizedEmail);
       if (!track.allowed)
         return res.status(429).json({ message: track.message });
     }
 
     const otp = otpUtils.generateOTP();
-    await otpUtils.setOTP(email, otp, 'forgot');
+    await otpUtils.setOTP(normalizedEmail, otp, 'forgot');
 
     await sendEmail({
-      to: email,
+      to: normalizedEmail,
       subject: 'Reset Password OTP',
       templateName: 'forgetPasswordTemplate',
       replacements: { fullname: user.fullname || 'User', otp },
@@ -106,15 +138,19 @@ const forgotPassword = async (req, res, next) => {
 const verifyOtp = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
-    const user = await User.findOne({ email });
+    // Use case-insensitive email lookup
+    const user = await User.findOne({
+      email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') },
+    });
     if (!user) {
       return next(
         new ApiError(errorConstants.AUTHENTICATION.USER_NOT_VERIFIED, 403)
       );
     }
     const type = !user.isVerified ? 'register' : 'forgot';
-    const result = await otpUtils.verifyOTP(email, otp, type);
+    const result = await otpUtils.verifyOTP(normalizedEmail, otp, type);
 
     if (!result.valid) return res.status(400).json({ message: result.message });
 
@@ -151,8 +187,12 @@ const verifyOtp = async (req, res, next) => {
 const resendOtp = async (req, res, next) => {
   try {
     const { email } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
-    const user = await User.findOne({ email }).lean();
+    // Use case-insensitive email lookup
+    const user = await User.findOne({
+      email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') },
+    }).lean();
     if (!user) {
       return next(
         new ApiError(errorConstants.AUTHENTICATION.USER_NOT_FOUND, 404)
@@ -165,14 +205,14 @@ const resendOtp = async (req, res, next) => {
     const template =
       type === 'register' ? 'otpTemplate' : 'forgetPasswordTemplate';
 
-    const track = await otpUtils.trackRequest(email);
+    const track = await otpUtils.trackRequest(normalizedEmail);
     if (!track.allowed) return res.status(429).json({ message: track.message });
 
     const otp = otpUtils.generateOTP();
-    await otpUtils.setOTP(email, otp, type);
+    await otpUtils.setOTP(normalizedEmail, otp, type);
 
     await sendEmail({
-      to: email,
+      to: normalizedEmail,
       subject,
       templateName: template,
       replacements: { fullname: user.fullname || 'User', otp },
@@ -195,8 +235,12 @@ const resendOtp = async (req, res, next) => {
 const resetPassword = async (req, res, next) => {
   try {
     const { email, newPassword } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
-    const user = await User.findOne({ email });
+    // Use case-insensitive email lookup
+    const user = await User.findOne({
+      email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') },
+    });
     if (!user)
       return next(
         new ApiError(errorConstants.AUTHENTICATION.USER_NOT_FOUND, 404)
@@ -228,8 +272,12 @@ const resetPassword = async (req, res, next) => {
 const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
-    const user = await User.findOne({ email });
+    // Use case-insensitive email lookup
+    const user = await User.findOne({
+      email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') },
+    });
     if (!user || !(await user.comparePassword(password)))
       return next(
         new ApiError(errorConstants.AUTHENTICATION.INVALID_CREDENTIALS, 404)

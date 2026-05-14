@@ -97,10 +97,10 @@ const tranSpeedValidator = Joi.number().integer().min(1).max(10).messages({
   'number.integer': errorConstants.VEHICLE.TRAN_SPEED_INTEGER,
 });
 const drivetrainValidator = enumValidator('DRIVETRAIN', [
-  'AWD',
-  'FWD',
-  'RWD',
-  '4WD',
+  'FWD (Front-Wheel Drive)',
+  'RWD (Rear-Wheel Drive)',
+  'AWD (All-Wheel Drive)',
+  '4WD (Four-Wheel Drive)',
 ]);
 const engineCylindersValidator = Joi.number()
   .integer()
@@ -200,32 +200,32 @@ const stateValidator = enumValidator('STATE', [
   'Indiana',
   'Iowa',
 ]);
-const countryValidator = enumValidator('COUNTRY', [
-  'USA(United States of America)',
-  'Canada',
-  'UK',
-  'Australia',
-  'Germany',
-  'France',
-  'Italy',
-  'Spain',
-  'Japan',
-  'China',
-  'India',
-  'Brazil',
-  'South Africa',
-  'Russia',
-  'South Korea',
-  'Netherlands',
-]);
-const warrantyValidator = enumValidator('WARRANTY', [
-  '3 months/3,000 miles',
-  '6 months/6,000 miles',
-  '12 months/12,000 miles',
-  'Factory Warranty Remaining',
-  'Extended Warranty Available',
-  'Certified Pre-Owned',
-]);
+// const countryValidator = enumValidator('COUNTRY', [
+//   'USA(United States of America)',
+//   'Canada',
+//   'UK',
+//   'Australia',
+//   'Germany',
+//   'France',
+//   'Italy',
+//   'Spain',
+//   'Japan',
+//   'China',
+//   'India',
+//   'Brazil',
+//   'South Africa',
+//   'Russia',
+//   'South Korea',
+//   'Netherlands',
+// ]);
+// const warrantyValidator = enumValidator('WARRANTY', [
+//   '3 months/3,000 miles',
+//   '6 months/6,000 miles',
+//   '12 months/12,000 miles',
+//   'Factory Warranty Remaining',
+//   'Extended Warranty Available',
+//   'Certified Pre-Owned',
+// ]);
 
 // 🔹 Smart Vendor Schema with `.when()`
 const vendorInfoSchema = Joi.object({
@@ -341,16 +341,16 @@ export const addVehicleSchema = Joi.object({
     titleIn: Joi.boolean().required(),
     stateTitleIn: optionalString('STATE_TITLE_IN'),
     title: optionalString('TITLE'),
-    titleDate: Joi.date().optional(),
-    country: countryValidator,
+    titleDate: optionalString('TITLE_DATE'),
+    country: optionalString('COUNTRY'),
   }),
 
   inspection: Joi.object({
     inspected: Joi.boolean().required(),
     inspectionNumber: optionalString('INSPECTION_NUMBER'),
-    inspectionDate: Joi.date().optional(),
+    inspectionDate: optionalString('INSPECTION_DATE'),
     inspectedBy: optionalString('INSPECTED_BY'),
-    warranty: warrantyValidator,
+    warranty: optionalString('WARRANTY'),
     deviceHasStarterInterrupt: Joi.boolean().optional(),
   }),
 
@@ -371,11 +371,11 @@ export const addVehicleSchema = Joi.object({
 });
 export const AddVehicleCostSchema = Joi.object({
   costDetails: Joi.object({
-    purchaseDate: Joi.date().optional(),
-    originalCost: Joi.number().min(0).optional(),
+    purchaseDate: Joi.date().required(),
+    originalCost: Joi.number().min(0).required(),
     buyersFee: Joi.number().min(0).optional(),
-    transportationFee: Joi.number().min(0).optional(),
-    lotFee: Joi.number().min(0).optional(),
+    transportationFee: Joi.number().min(0).required(),
+    lotFee: Joi.number().min(0).required(),
     addedCosts: Joi.array()
       .items(
         Joi.object({
@@ -390,7 +390,7 @@ export const AddVehicleCostSchema = Joi.object({
   floorPlanDetails: Joi.object({
     isFloorPlanned: Joi.boolean().optional(),
     company: Joi.string().allow('', null).optional(),
-    dateOpened: Joi.date().optional(),
+    dateOpened: Joi.date().allow('').optional(),
     setUpFee: Joi.number().min(0).optional(),
     adminFee: Joi.number().min(0).optional(),
     additionalFee: Joi.number().min(0).optional(),
@@ -421,7 +421,7 @@ export const vehicleIdQuerySchema = Joi.object({
 });
 export const AddVehicleSalesSchema = Joi.object({
   Price: Joi.object({
-    Retail: Joi.number().min(0).optional(),
+    Retail: Joi.number().min(0).required(),
     Interest: Joi.number().min(0).optional(),
     Wholesale: Joi.number().min(0).optional(),
     Other: Joi.number().min(0).optional(),
