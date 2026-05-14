@@ -23,7 +23,7 @@ export const addCustomer = async (req, res, next) => {
       return next(new ApiError(error.details[0].message, 400));
     }
 
-    const { CustomerInformation } = value;
+    const { CustomerInformation, IncomeInformation } = value;
     // 🔎 Check if customer already exists by email
     const existingCustomer = await Customer.findOne({
       'CustomerInformation.email': value.CustomerInformation.email,
@@ -41,6 +41,7 @@ export const addCustomer = async (req, res, next) => {
     // ✅ Create new customer
     const newCustomer = new Customer({
       CustomerInformation,
+      IncomeInformation,
       customerId: customId,
     });
 
@@ -130,6 +131,7 @@ export const editCustomerById = async (req, res, next) => {
 
     // ✏️ Update the CustomerInformation
     customer.CustomerInformation = value.CustomerInformation;
+    customer.IncomeInformation = value.IncomeInformation;
 
     const updatedCustomer = await customer.save();
 
@@ -159,11 +161,11 @@ export const getAllCustomers = async (req, res, next) => {
     // Get total count of customers
     const totalCustomers = await Customer.countDocuments();
 
-    // Fetch paginated customers
+    // Fetch paginated customers, most recent first
     const customers = await Customer.find()
+      .sort({ createdAt: -1 }) // Sort by most recent
       .skip(skip)
-      .limit(parsedLimit)
-      .sort({ createdAt: -1 }); // Optional: latest first
+      .limit(parsedLimit);
 
     if (!customers || customers.length === 0) {
       return next(new ApiError('No customers found', 404));
