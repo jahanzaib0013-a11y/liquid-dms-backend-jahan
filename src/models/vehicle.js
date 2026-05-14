@@ -226,20 +226,11 @@ const vehicleSchema = new mongoose.Schema(
 
     floorPlanDetails: {
       isFloorPlanned: { type: Boolean, default: false },
-      company: String,
-
-      dateOpened: Date,
-      setUpFee: Number,
-      adminFee: Number,
-      additionalFee: Number,
-      aprRate: Number,
-      notes: String,
-    },
-    Curtailments: {
-      lengthFloorPlan: Number,
-      daysUntil1stCurtailment: Number,
-      lengthFloorPlan2: Number,
-      daysUntil2ndCurtailment: Number,
+      floorPlan: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'FloorPlan',
+      },
+      // dateOpened and notes removed as they are now inside FloorPlan model
     },
     Price: {
       Retail: Number,

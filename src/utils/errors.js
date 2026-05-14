@@ -383,6 +383,15 @@ const errorConstants = {
     STATE_REQUIRED: 'State is required.',
     ZIP_MUST_BE_STRING: 'ZIP code must be a string.',
     ZIP_REQUIRED: 'ZIP code is required.',
+    PHONE_MUST_BE_STRING: 'Phone number must be a string.',
+    PHONE_REQUIRED: 'Phone number is required.',
+    CONTACT_PERSON_MUST_BE_STRING: 'Contact person must be a string.',
+    CONTACT_PERSON_REQUIRED: 'Contact person is required.',
+
+    // 🔹 Status
+    STATUS_MUST_BE_STRING: 'Status must be a string.',
+    STATUS_REQUIRED: 'Status is required.',
+    STATUS_INVALID: 'Status must be either "active" or "inactive".',
 
     // 🔹 Rate
     APR_MUST_BE_NUMBER: 'APR must be a number.',
@@ -447,6 +456,67 @@ const errorConstants = {
     RATE_REQUIRED: 'Rate details are required.',
     FEES_REQUIRED: 'Fees details are required.',
     TERM_REQUIRED: 'Term details are required.',
+  },
+  SALES: {
+    // 🔹 Customer Information
+    SALES_NOT_FOUND: 'Sales record not found.',
+    CUSTOMER_ID_MUST_BE_STRING: 'Customer ID must be a string.',
+    CUSTOMER_ID_REQUIRED: 'Customer ID is required.',
+    CUSTOMER_NOT_FOUND: 'Customer not found.',
+    CUSTOMER_ALREADY_EXISTS: 'Customer already exists.',
+
+    // 🔹 Personal Information
+    FIRST_NAME_MUST_BE_STRING: 'First name must be a string.',
+    FIRST_NAME_REQUIRED: 'First name is required.',
+    MIDDLE_NAME_MUST_BE_STRING: 'Middle name must be a string.',
+    LAST_NAME_MUST_BE_STRING: 'Last name must be a string.',
+    LAST_NAME_REQUIRED: 'Last name is required.',
+
+    // 🔹 Address Information
+    STREET_MUST_BE_STRING: 'Street must be a string.',
+    STREET_REQUIRED: 'Street is required.',
+    CITY_MUST_BE_STRING: 'City must be a string.',
+    CITY_REQUIRED: 'City is required.',
+    STATE_MUST_BE_STRING: 'State must be a string.',
+    STATE_REQUIRED: 'State is required.',
+    ZIP_CODE_MUST_BE_STRING: 'ZIP code must be a string.',
+    ZIP_CODE_REQUIRED: 'ZIP code is required.',
+    COUNTRY_MUST_BE_STRING: 'Country must be a string.',
+
+    // 🔹 Contact Information
+    PRIMARY_CONTACT_NUMBER_MUST_BE_STRING:
+      'Primary contact number must be a string.',
+    PRIMARY_CONTACT_NUMBER_REQUIRED: 'Primary contact number is required.',
+    SECONDARY_CONTACT_NUMBER_MUST_BE_STRING:
+      'Secondary contact number must be a string.',
+    EMAIL_MUST_BE_STRING: 'Email must be a string.',
+    EMAIL_REQUIRED: 'Email is required.',
+    EMAIL_INVALID: 'Email must be a valid email address.',
+    EMAIL_ALREADY_EXISTS: 'Email already exists.',
+
+    // 🔹 Personal Details
+    GENDER_INVALID: 'Gender must be Male, Female, or Other.',
+    SSN_MUST_BE_STRING: 'SSN must be a string.',
+    DRIVER_LICENSE_MUST_BE_STRING: 'Driver license must be a string.',
+    SPOUSE_NAME_MUST_BE_STRING: 'Spouse name must be a string.',
+    VEHICLE_USE_MUST_BE_STRING: 'Vehicle use must be a string.',
+    HEAR_ABOUT_US_INVALID: 'Hear about us must be Facebook, Twitter, or Other.',
+
+    // 🔹 Income Information
+    EMPLOYMENT_STATUS_INVALID: 'Employment status is invalid.',
+    EMPLOYMENT_LENGTH_MUST_BE_STRING: 'Employment length must be a string.',
+    GROSS_MONTHLY_INCOME_MUST_BE_NUMBER:
+      'Gross monthly income must be a number.',
+    GROSS_MONTHLY_INCOME_NEGATIVE: 'Gross monthly income cannot be negative.',
+    INCOME_VERIFICATION_METHOD_INVALID:
+      'Income verification method is invalid.',
+    EMPLOYMENT_TYPE_MUST_BE_STRING: 'Employment type must be a string.',
+
+    // 🔹 General
+    SALES_CREATED: 'Sales record created successfully.',
+    SALES_UPDATED: 'Sales record updated successfully.',
+    SALES_DELETED: 'Sales record deleted successfully.',
+    CUSTOMER_INFO_REQUIRED: 'Customer information is required.',
   },
   CUSTOMER: {
     SECONDARY_CONTACT_MUST_BE_STRING: 'Secondary contact must be a string.',

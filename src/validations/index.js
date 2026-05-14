@@ -24,6 +24,7 @@ import {
   addCustomerSchema,
   editCustomerSchema,
 } from './Customer.validation.js';
+import { addSalesSchema, editSalesSchema } from './Sales.validation.js';
 const validationSchemas = {
   // Authentication
 
@@ -56,15 +57,23 @@ const validationSchemas = {
   '/vehicle/deletebyId': { DELETE: null },
   //FloorPlan
   '/floorPlan/add-floor': { POST: addFloorPlanSchema },
-  '/floorPlan': { GET: null },
+  '/floorPlan/get-floor': { GET: null },
   '/floorPlan/edit-floor': { PUT: null },
   '/floorPlan/floors': { GET: null },
+  '/floorPlan/delete-floor': { DELETE: null },
+  '/floorPlan/floors-paginated': { GET: null },
   //Customer
   '/customer/add-customer': { POST: addCustomerSchema },
   '/customer/edit-customer': { PUT: editCustomerSchema },
   '/customer': { GET: null },
   '/customer/customers': { GET: null },
   '/customer/delete-customer': { DELETE: null },
+  //Sales
+  '/sales/add-sales': { POST: addSalesSchema },
+  '/sales/edit-sales': { PUT: editSalesSchema },
+  '/sales/get-sales': { GET: null },
+  '/sales/delete-sales': { DELETE: null },
+  '/sales/sales': { GET: null },
 };
 
 export { validationSchemas };

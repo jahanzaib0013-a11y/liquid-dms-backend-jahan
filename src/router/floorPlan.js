@@ -4,13 +4,17 @@ import {
   editFloorPlan,
   getFloorPlanById,
   showAllFloorPlans,
+  showAllFloorPlansPaginated,
+  deleteFloorPlan,
 } from '../controllers/floorPlanController.js';
 import { verifyToken } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
 router.post('/add-floor', verifyToken, addFloorPlan);
-router.get('/', verifyToken, getFloorPlanById);
+router.get('/get-floor', verifyToken, getFloorPlanById);
 router.put('/edit-floor', verifyToken, editFloorPlan);
-router.get('/floors', verifyToken, showAllFloorPlans); // Assuming this is to get all floors
+router.delete('/delete-floor', verifyToken, deleteFloorPlan);
+router.get('/floors', verifyToken, showAllFloorPlans);
+router.get('/floors-paginated', verifyToken, showAllFloorPlansPaginated);
 export default router;

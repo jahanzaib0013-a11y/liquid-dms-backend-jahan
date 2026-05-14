@@ -6,6 +6,15 @@ const floorPlanSchema = new mongoose.Schema({
     city: { type: String, required: true },
     state: { type: String, required: true },
     zip: { type: String, required: true },
+    phone: { type: String, required: true },
+    contactPerson: { type: String, required: true },
+    status: {
+      type: String,
+      enum: ['Active', 'Inactive'],
+      default: 'Active',
+      required: true,
+    },
+    dateOpened: { type: Date },
   },
 
   Rate: {
@@ -21,6 +30,7 @@ const floorPlanSchema = new mongoose.Schema({
     adminFee: { type: Number, default: 0 },
     setUpFee: { type: Number, default: 0 },
     additionalFee: { type: Number, default: 0 },
+    notes: { type: String },
   },
   term: {
     lengthInDays: { type: Number, default: 0 },
