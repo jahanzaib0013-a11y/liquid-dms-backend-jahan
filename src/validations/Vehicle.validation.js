@@ -53,7 +53,6 @@ const styleValidator = enumValidator('STYLE', [
   'Minivan',
   'Roadster',
 ]);
-const bodyTypeValidator = enumValidator('BODY_TYPE', ['2DR', '4DR']);
 const yearValidator = Joi.number()
   .integer()
   .min(1900)
@@ -81,7 +80,6 @@ const conditionValidator = enumValidator('CONDITION', [
   'Used',
   'Rebuild',
 ]);
-const certifiedValidator = enumValidator('CERTIFIED', ['Yes', 'No']);
 const transmissionValidator = enumValidator('TRANSMISSION', [
   'Automatic',
   'Manual',
@@ -90,28 +88,14 @@ const transmissionValidator = enumValidator('TRANSMISSION', [
   'Tiptronic',
   'Semi-Automatic',
 ]);
-const tranSpeedValidator = Joi.number().integer().min(1).max(10).messages({
-  'number.base': errorConstants.VEHICLE.TRAN_SPEED_MUST_BE_NUMBER,
-  'number.min': errorConstants.VEHICLE.TRAN_SPEED_TOO_LOW,
-  'number.max': errorConstants.VEHICLE.TRAN_SPEED_TOO_HIGH,
-  'number.integer': errorConstants.VEHICLE.TRAN_SPEED_INTEGER,
-});
+
 const drivetrainValidator = enumValidator('DRIVETRAIN', [
   'FWD (Front-Wheel Drive)',
   'RWD (Rear-Wheel Drive)',
   'AWD (All-Wheel Drive)',
   '4WD (Four-Wheel Drive)',
 ]);
-const engineCylindersValidator = Joi.number()
-  .integer()
-  .min(1)
-  .max(16)
-  .messages({
-    'number.base': errorConstants.VEHICLE.CYLINDERS_MUST_BE_NUMBER,
-    'number.min': errorConstants.VEHICLE.CYLINDERS_TOO_LOW,
-    'number.max': errorConstants.VEHICLE.CYLINDERS_TOO_HIGH,
-    'number.integer': errorConstants.VEHICLE.CYLINDERS_INTEGER,
-  });
+
 const engineSizeValidator = Joi.number().positive().messages({
   'number.base': errorConstants.VEHICLE.ENGINE_SIZE_INVALID,
   'number.positive': errorConstants.VEHICLE.ENGINE_SIZE_INVALID,
@@ -122,38 +106,12 @@ const fuelTypeValidator = enumValidator('FUEL_TYPE', [
   'Electric',
   'Hybrid',
 ]);
-const mpgValidator = Joi.number().min(0).messages({
-  'number.base': errorConstants.VEHICLE.MPG_MUST_BE_NUMBER,
-  'number.min': errorConstants.VEHICLE.MPG_NEGATIVE,
-});
+
 const towCapacityValidator = Joi.number().min(0).messages({
   'number.base': errorConstants.VEHICLE.TOW_CAPACITY_MUST_BE_NUMBER,
   'number.min': errorConstants.VEHICLE.TOW_CAPACITY_NEGATIVE,
 });
-const passengersValidator = Joi.number().integer().min(1).max(100).messages({
-  'number.base': errorConstants.VEHICLE.PASSENGERS_MUST_BE_NUMBER,
-  'number.min': errorConstants.VEHICLE.PASSENGERS_TOO_LOW,
-  'number.max': errorConstants.VEHICLE.PASSENGERS_TOO_HIGH,
-  'number.integer': errorConstants.VEHICLE.PASSENGERS_INTEGER,
-});
-const mileageValidator = enumValidator('MILEAGE', [
-  '1,000',
-  '10,000',
-  '25,000',
-  '50,000',
-  '75,000',
-  '100,000',
-  '125,000',
-  '150,000+',
-]);
 
-const mileageIsValidator = enumValidator('MILEAGE_STATUS', [
-  'Actual',
-  'Not Actual',
-  'Exempt',
-  'Unknown',
-  'TMU (True Mileage Unknown)',
-]);
 const colorValidator = enumValidator('COLOR', [
   'White',
   'Black',
@@ -314,36 +272,36 @@ export const addVehicleSchema = Joi.object({
     make: makeValidator,
     model: modelValidator,
     style: styleValidator,
-    bodyType: bodyTypeValidator,
+    bodyType: optionalString('BODY_TYPE'),
     manufacturingYear: yearValidator,
     vehicleType: vehicleTypeValidator,
     condition: conditionValidator,
-    certified: certifiedValidator,
+    certified: optionalString('CERTIFIED'),
   }),
 
   specifications: Joi.object({
     transmission: transmissionValidator,
-    tranSpeed: tranSpeedValidator,
+    tranSpeed: optionalString('TRAN_SPEED'),
     drivetrain: drivetrainValidator,
-    engineCylinders: engineCylindersValidator,
+    engineCylinders: optionalString('ENGINE_CYLINDERS'),
     engineSize: engineSizeValidator,
     fuelType: fuelTypeValidator,
-    mpgCombined: mpgValidator,
-    mpgCity: mpgValidator,
-    mpgHighway: mpgValidator,
+    mpgCombined: optionalString('MPG_COMBINED'),
+    mpgCity: optionalString('MPG_CITY'),
+    mpgHighway: optionalString('MPG_HIGHWAY'),
     towCapacity: towCapacityValidator,
-    passengers: passengersValidator,
-    weight: towCapacityValidator,
-    mileage: mileageValidator,
-    mileageIs: mileageIsValidator,
+    passengers: optionalString('PASSENGERS'),
+    weight: optionalString('WEIGHT'),
+    mileage: requiredString('MILEAGE'),
+    mileageIs: optionalString('MILEAGE_IS'),
   }),
 
   exteriorInterior: Joi.object({
     exteriorColor: colorValidator,
-    exteriorColor2: colorValidator,
+    exteriorColor2: optionalString('EXTERIOR_COLOR_2'),
     colorDescription: optionalString('COLOR_DESCRIPTION'),
     interiorColor: interiorColorValidator,
-    tag: optionalString('TAG'),
+    tag: requiredString('TAG'),
     decal: optionalString('DECAL'),
     gpsSerial: optionalString('GPS_SERIAL'),
   }),
@@ -495,8 +453,8 @@ export const addVehicleNotesSchema = Joi.object({
     NoteCategory: Joi.string().allow('', null).optional(),
     NoteTitle: Joi.string().allow('', null).optional(),
     NoteDetails: Joi.string().allow('', null).optional(),
-    uploadedNotes: Joi.array().items(Joi.string().uri()).optional(),
   }).optional(),
+  uploadedNotes: Joi.array().items(Joi.string().uri()).optional(),
 });
 
 export const editVehicleSchema = addVehicleSchema.fork(

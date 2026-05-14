@@ -114,19 +114,21 @@ const errorConstants = {
     CERTIFIED_MUST_BE_STRING: 'Certified must be a string.',
     CERTIFIED_REQUIRED: 'Certified is required.',
     TRAN_SPEED_MUST_BE_STRING: 'Transmission speed must be a string.',
-    TRAN_SPEED_REQUIRED: 'Transmission speed is required.',
+    SECONDARY_CONTACT_MUST_BE_STRING: 'Secondary contact must be a string.',
     DRIVETRAIN_MUST_BE_STRING: 'Drivetrain must be a string.',
     DRIVETRAIN_REQUIRED: 'Drivetrain is required.',
     CYLINDERS_MUST_BE_STRING: 'Cylinders must be a string.',
     CYLINDERS_REQUIRED: 'Cylinders are required.',
-    ENGINE_SIZE_MUST_BE_STRING: 'Engine size must be a string.',
-    ENGINE_SIZE_REQUIRED: 'Engine size is required.',
+
+    ENGINE_SIZE_MUST_BE_STRING: 'Engine size must be a number.',
+
+    MILEAGE_IS_MUST_BE_STRING: 'Mileage is must be a string.',
     FUEL_TYPE_MUST_BE_STRING: 'Fuel type must be a string.',
     FUEL_TYPE_REQUIRED: 'Fuel type is required.',
     MPG_MUST_BE_STRING: 'MPG must be a string.',
     MPG_REQUIRED: 'MPG is required.',
-    PASSENGERS_MUST_BE_STRING: 'Passenger count must be a string.',
-    PASSENGERS_REQUIRED: 'Passenger count is required.',
+    PASSENGERS_MUST_BE_STRING: 'Passenger count must be a number.',
+
     MILEAGE_MUST_BE_STRING: 'Mileage must be a string.',
     MILEAGE_REQUIRED: 'Mileage is required.',
     MILEAGE_STATUS_MUST_BE_STRING: 'Mileage status must be a string.',
@@ -201,6 +203,7 @@ const errorConstants = {
     YEAR_INTEGER: 'Year must be an integer.',
     CONDITION_INVALID: 'Condition is invalid.',
     CERTIFIED_INVALID: 'Certified value is invalid.',
+    WEIGHT_MUST_BE_NUMBER: 'Weight must be a number.',
     TRANSMISSION_INVALID: 'Transmission type is invalid.',
     TRAN_SPEED_MUST_BE_NUMBER: 'Transmission speed must be a number.',
     TRAN_SPEED_TOO_LOW: 'Transmission speed too low.',
@@ -232,6 +235,8 @@ const errorConstants = {
     GPS_SERIAL_MUST_BE_STRING: 'GPS serial must be a string.',
 
     // 🔹 Title & Inspection
+
+    EXTERIOR_COLOR_2_MUST_BE_STRING: 'Exterior color 2 must be a string.',
     TITLE_IN_MUST_BE_BOOLEAN: 'Title in must be a boolean.',
     TITLE_IN_REQUIRED: 'Title in is required.',
     STATE_TITLE_IN_MUST_BE_STRING: 'State title in must be a string.',
@@ -263,6 +268,12 @@ const errorConstants = {
 
     // 🔹 Misc
     FEATURES_MUST_BE_ARRAY: 'Features must be an array.',
+    ENGINE_CYLINDERS_MUST_BE_STRING: 'Engine cylinders must be a string.',
+    MPG_COMBINED_MUST_BE_STRING: 'MPG combined must be a string.',
+    MPG_CITY_MUST_BE_STRING: 'MPG city must be a string.',
+    MPG_HIGHWAY_MUST_BE_STRING: 'MPG highway must be a string.',
+
+    WEIGHT_MUST_BE_STRING: 'Weight must be a string.',
   },
   //🔹 Campaign Login Template Errors
   CAMPAIGN_LOGIN_TEMPLATE: {
@@ -335,13 +346,15 @@ const errorConstants = {
     EMAIL_REQUIRED: 'Email is required.',
     EMAIL_MUST_BE_STRING: 'Email must be a string.',
     EMAIL_INVALID: 'Email must be a valid email address.',
-
+    BODY_TYPE_MUST_BE_STRING: 'Body type must be a string.',
+    MILEAGE_MUST_BE_STRING: 'Mileage must be a string.',
+    MILEAGE_REQUIRED: 'Mileage is required.',
     // Account Number
     ACCOUNT_NUMBER_MUST_BE_STRING: 'Account number must be a string.',
-
+    CONDITION_MUST_BE_STRING: 'Condition must be a string.',
     // Name on Check
     NAME_ON_CHECK_MUST_BE_STRING: 'Name to print on check must be a string.',
-
+    CERTIFIED_MUST_BE_STRING: 'Certified must be a string.',
     // Tax ID / SSN
     TAX_ID_REQUIRED: 'Tax ID or SSN is required.',
     TAX_ID_MUST_BE_STRING: 'Tax ID or SSN must be a string.',
@@ -436,6 +449,7 @@ const errorConstants = {
     TERM_REQUIRED: 'Term details are required.',
   },
   CUSTOMER: {
+    SECONDARY_CONTACT_MUST_BE_STRING: 'Secondary contact must be a string.',
     FIRST_NAME_REQUIRED: 'First name is required',
     FIRST_NAME_MUST_BE_STRING: 'First name must be a string',
     MIDDLE_NAME_MUST_BE_STRING: 'Middle name must be a string',

@@ -16,14 +16,9 @@ import extractCategoryCode from '../utils/extractCategory.js';
 import SuccessHandler from '../utils/SuccessHandler.js';
 import mongoose from 'mongoose';
 import paginate from '../utils/paginate.js';
+import { getFullImageUrl } from '../utils/url.js';
 
 // 🔧 Convert file path to public URL
-const toPublicUrl = (filePath) => {
-  if (!filePath) return null;
-  const normalized = filePath.replace(/\\/g, '/'); // Windows fix
-  const uploadIndex = normalized.indexOf('uploads');
-  return uploadIndex !== -1 ? '/' + normalized.slice(uploadIndex) : normalized;
-};
 
 // ✅ Add Vehicle Controller
 export const addVehicle = async (req, res, next) => {
@@ -59,7 +54,7 @@ export const addVehicle = async (req, res, next) => {
     // 🔁 Reusable bill of sales file logic
     const billofsalesFile = req.files?.billofsales?.[0];
     const billofsalesUrl = billofsalesFile
-      ? toPublicUrl(billofsalesFile.path)
+      ? getFullImageUrl(billofsalesFile.filename)
       : '';
 
     // 📦 Handle Existing Vendor
@@ -109,13 +104,15 @@ export const addVehicle = async (req, res, next) => {
     }
 
     // 🖼️ Vehicle Images
-    const featuredImageUrl = toPublicUrl(req.files?.featuredImage?.[0]?.path);
+    const featuredImageUrl = req.files?.featuredImage?.[0]?.filename
+      ? getFullImageUrl(req.files.featuredImage[0].filename)
+      : '';
     const otherImageFiles = [
       ...(req.files?.otherImages || []),
       ...(req.files?.['otherImages[]'] || []),
     ];
     const otherImageUrls = otherImageFiles.map((file) =>
-      toPublicUrl(file.path)
+      getFullImageUrl(file.filename)
     );
 
     // 🆔 Generate stockId (e.g. DL-SUV-0001)
@@ -421,8 +418,8 @@ export const addVehiclePreviousOwner = async (req, res, next) => {
 
     // 4. Handle file upload
     if (req.files && req.files.transferDocument) {
-      updateData.transferDocument = toPublicUrl(
-        req.files.transferDocument[0].path
+      updateData.transferDocument = getFullImageUrl(
+        req.files.transferDocument[0].filename
       );
     }
 
@@ -442,7 +439,9 @@ export const addVehiclePreviousOwner = async (req, res, next) => {
       ...(req.files?.transferDocument || []),
       ...(req.files?.['transferDocument[]'] || []),
     ];
-    const transferDocUrls = transferDocs.map((f) => toPublicUrl(f.path));
+    const transferDocUrls = transferDocs.map((f) =>
+      getFullImageUrl(f.filename)
+    );
 
     // Set inside PreviousOwnerDetail
     if (!updatedVehicle.PreviousOwnerDetail) {
@@ -504,9 +503,16 @@ export const addVehicleNotes = async (req, res, next) => {
       });
     }
 
-    // 4. Handle file upload for uploadedNotes (single file expected)
-    if (req.files && req.files.uploadedNotes) {
-      updateData.uploadedNotes = toPublicUrl(req.files.uploadedNotes[0].path);
+    // 4. Handle file upload for uploadedNotes (single or multiple files expected)
+    const uploadedNotesFiles = [
+      ...(req.files?.uploadedNotes || []),
+      ...(req.files?.['uploadedNotes[]'] || []),
+    ];
+    const uploadedNotesUrls = uploadedNotesFiles.map((f) =>
+      getFullImageUrl(f.filename)
+    );
+    if (uploadedNotesUrls.length > 0) {
+      updateData.uploadedNotes = uploadedNotesUrls; // <-- Top-level field
     }
 
     // 5. Update the vehicle
@@ -519,22 +525,6 @@ export const addVehicleNotes = async (req, res, next) => {
     if (!updatedVehicle) {
       return next(new ApiError('Vehicle not found', 404));
     }
-
-    // Merge files from both field names
-    const uploadedNotesFiles = [
-      ...(req.files?.uploadedNotes || []),
-      ...(req.files?.['uploadedNotes[]'] || []),
-    ];
-    const uploadedNotesUrls = uploadedNotesFiles.map((f) =>
-      toPublicUrl(f.path)
-    );
-
-    // Set inside OtherNotes
-    if (!updatedVehicle.OtherNotes) {
-      updatedVehicle.OtherNotes = {};
-    }
-    updatedVehicle.OtherNotes.uploadedNotes = uploadedNotesUrls;
-    await updatedVehicle.save();
 
     // 6. Reorder vehicle object for response
     const vehicleObject = updatedVehicle.toObject();
@@ -604,19 +594,19 @@ export const markVehicleAsCompleted = async (req, res, next) => {
 };
 export const getAllVehicles = async (req, res, next) => {
   try {
-    logger.info('📄 Fetching all completed vehicles');
+    logger.info('📄 Fetching all vehicles');
 
     const { page = 1, limit = 10 } = req.query;
     const { skip, limit: parsedLimit } = paginate(page, limit);
 
-    // 🚙 Fetch only vehicles that are marked as completed
-    const vehicles = await Vehicle.find({ markAsCompleted: true })
+    // Fetch all vehicles regardless of completion status
+    const vehicles = await Vehicle.find({})
       .populate({ path: 'vendor', select: '-taxIdOrSSN' })
       .skip(skip)
       .limit(parsedLimit)
       .sort({ createdAt: -1 });
 
-    const total = await Vehicle.countDocuments({ markAsCompleted: true });
+    const total = await Vehicle.countDocuments({});
 
     const response = {
       totalVehicles: total,
@@ -628,11 +618,11 @@ export const getAllVehicles = async (req, res, next) => {
     return SuccessHandler(
       response,
       200,
-      'Completed vehicles fetched successfully',
+      'All vehicles fetched successfully',
       res
     );
   } catch (error) {
-    logger.error('❌ Error fetching completed vehicles:', error);
+    logger.error('❌ Error fetching all vehicles:', error);
     return next(
       new ApiError(
         error.message || errorConstants.GENERAL.INTERNAL_SERVER_ERROR,
@@ -747,7 +737,7 @@ export const editVehicle = async (req, res, next) => {
     // ✅ Handle bill of sales file
     const billofsalesFile = req.files?.billofsales?.[0];
     const billofsalesUrl = billofsalesFile
-      ? toPublicUrl(billofsalesFile.path)
+      ? getFullImageUrl(billofsalesFile.filename)
       : '';
 
     // ✅ Vendor Handling
@@ -788,8 +778,8 @@ export const editVehicle = async (req, res, next) => {
     }
 
     // ✅ Image Handling
-    const featuredImageUrl = req.files?.featuredImage?.[0]?.path
-      ? toPublicUrl(req.files.featuredImage[0].path)
+    const featuredImageUrl = req.files?.featuredImage?.[0]?.filename
+      ? getFullImageUrl(req.files.featuredImage[0].filename)
       : existingVehicle.images.featuredImageUrl;
 
     const otherImageFiles = [
@@ -797,7 +787,7 @@ export const editVehicle = async (req, res, next) => {
       ...(req.files?.['otherImages[]'] || []),
     ];
     const otherImageUrls = otherImageFiles.map((file) =>
-      toPublicUrl(file.path)
+      getFullImageUrl(file.filename)
     );
 
     // ✅ Compare category/vehicleType for stockId change

@@ -46,7 +46,6 @@ const vehicleSchema = new mongoose.Schema(
       },
       bodyType: {
         type: String,
-        enum: ['2DR', '4DR'],
       },
       manufacturingYear: {
         type: Number,
@@ -74,7 +73,6 @@ const vehicleSchema = new mongoose.Schema(
       },
       certified: {
         type: String,
-        enum: ['Yes', 'No'],
       },
     },
 
@@ -114,26 +112,9 @@ const vehicleSchema = new mongoose.Schema(
       weight: Number,
       mileage: {
         type: String,
-        enum: [
-          '1,000',
-          '10,000',
-          '25,000',
-          '50,000',
-          '75,000',
-          '100,000',
-          '125,000',
-          '150,000+',
-        ],
       },
       mileageIs: {
         type: String,
-        enum: [
-          'Actual',
-          'Not Actual',
-          'Exempt',
-          'Unknown',
-          'TMU (True Mileage Unknown)',
-        ],
       },
     },
     // Exterior & Interior Info
@@ -158,21 +139,6 @@ const vehicleSchema = new mongoose.Schema(
       },
       exteriorColor2: {
         type: String,
-        enum: [
-          'White',
-          'Black',
-          'Silver',
-          'Red',
-          'Blue',
-          'Green',
-          'Yellow',
-          'Gray',
-          'Brown',
-          'Orange',
-          'Gold',
-          'Maroon',
-          'Beige',
-        ],
       },
       colorDescription: String,
       interiorColor: {
@@ -243,7 +209,7 @@ const vehicleSchema = new mongoose.Schema(
     },
     costDetails: {
       purchaseDate: Date,
-      originalCost: Number,
+      originalCost: { type: Number, default: 0 },
       buyersFee: Number,
       transportationFee: Number,
       lotFee: Number,
@@ -331,8 +297,8 @@ const vehicleSchema = new mongoose.Schema(
       NoteTitle: String,
 
       NoteDetails: String,
-      uploadedNotes: [String],
     },
+    uploadedNotes: [String],
     markAsCompleted: { type: Boolean, default: false },
     billofsales: {
       type: String,
