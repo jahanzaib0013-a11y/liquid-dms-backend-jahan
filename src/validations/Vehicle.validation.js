@@ -252,9 +252,9 @@ const vendorInfoSchema = Joi.object({
     then: requiredString('TAX_ID_OR_SSN'),
     otherwise: Joi.forbidden(),
   }),
-  notes: Joi.when('isExistingVendor', {
+  note: Joi.when('isExistingVendor', {
     is: false,
-    then: optionalString('NOTES'),
+    then: optionalString('NOTE'),
     otherwise: Joi.forbidden(),
   }),
   billofsales: Joi.when('isExistingVendor', {
@@ -359,7 +359,7 @@ export const AddVehicleCostSchema = Joi.object({
   }).optional(),
   floorPlanDetails: Joi.object({
     isFloorPlanned: Joi.boolean().optional(),
-    isExistingFloor: Joi.boolean().default(false), // true = use existing, false = create new (default)
+    isExistingFloor: Joi.boolean().optional(), // <-- make this optional for validation and DB
     companyName: Joi.string().optional(), // Company name for existing floor plan lookup
     newFloorPlan: Joi.object({
       CompanyDetails: Joi.object({
