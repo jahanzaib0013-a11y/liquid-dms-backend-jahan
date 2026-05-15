@@ -246,9 +246,6 @@ export const addVehicleCost = async (req, res, next) => {
       if (value.floorPlanDetails.dateOpened === '') {
         delete value.floorPlanDetails.dateOpened;
       }
-      if (value.floorPlanDetails.notes === '') {
-        delete value.floorPlanDetails.notes;
-      }
 
       // Handle floor plan logic
       if (value.floorPlanDetails.isFloorPlanned) {
@@ -288,6 +285,29 @@ export const addVehicleCost = async (req, res, next) => {
               )
             );
           }
+
+          // ✅ CHECK FOR DUPLICATE COMPANY NAME WHEN CREATING NEW FLOOR PLAN
+          const newCompanyName =
+            value.floorPlanDetails.newFloorPlan.CompanyDetails?.companyName;
+          if (newCompanyName) {
+            const existingFloorPlanWithSameName = await FloorPlan.findOne({
+              'CompanyDetails.companyName': newCompanyName,
+            });
+
+            if (existingFloorPlanWithSameName) {
+              logger.warn({
+                message: `❌ Floor plan already exists for company: ${newCompanyName}`,
+                timestamp: new Date().toISOString(),
+              });
+              return next(
+                new ApiError(
+                  `Floor plan already exists for company '${newCompanyName}'. Please use existing floor plan or choose a different company name.`,
+                  409
+                )
+              );
+            }
+          }
+
           // Ensure dateOpened is set in CompanyDetails if provided at the top level
           if (value.floorPlanDetails.dateOpened) {
             value.floorPlanDetails.newFloorPlan.CompanyDetails = {
@@ -295,18 +315,17 @@ export const addVehicleCost = async (req, res, next) => {
               dateOpened: value.floorPlanDetails.dateOpened,
             };
           }
-          // Ensure notes is set in Fees if provided at the top level
-          if (value.floorPlanDetails.notes) {
-            value.floorPlanDetails.newFloorPlan.Fees = {
-              ...value.floorPlanDetails.newFloorPlan.Fees,
-              notes: value.floorPlanDetails.notes,
-            };
-          }
+
           const newFloorPlan = new FloorPlan(
             value.floorPlanDetails.newFloorPlan
           );
           const savedFloorPlan = await newFloorPlan.save();
           floorPlanId = savedFloorPlan._id;
+
+          logger.info({
+            message: `✅ New floor plan created for company: ${newCompanyName}`,
+            timestamp: new Date().toISOString(),
+          });
         }
 
         // Update the floor plan reference
@@ -361,7 +380,6 @@ export const addVehicleCost = async (req, res, next) => {
     );
   }
 };
-
 export const addVehicleSales = async (req, res, next) => {
   try {
     logger.info('💲 Sales request received');

@@ -308,7 +308,7 @@ export const addVehicleSchema = Joi.object({
 
   titleRegistration: Joi.object({
     titleApplication: requiredString('TITLE_APPLICATION'),
-    titleIn: Joi.boolean().required(),
+    titleId: Joi.boolean().required(),
     stateTitleIn: optionalString('STATE_TITLE_IN'),
     title: optionalString('TITLE'),
     titleDate: optionalString('TITLE_DATE'),
@@ -394,7 +394,7 @@ export const AddVehicleCostSchema = Joi.object({
         percentPrincipalReduction2: Joi.number().min(0).default(0),
         interestAndFeesWithEachCurtailment: Joi.boolean().default(false),
       }).optional(),
-      additionalNotes: Joi.string().default(''),
+      additionalNotes: Joi.string().allow('', null).optional().default(''),
     }).optional(), // New floor plan data
   }).optional(),
 })

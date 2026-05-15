@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 const floorPlanSchema = new mongoose.Schema({
+  isExistingFloor: { type: Boolean, default: false, required: true },
   CompanyDetails: {
     companyName: { type: String, required: true, unique: true },
     street: { type: String, required: true },
@@ -30,7 +31,6 @@ const floorPlanSchema = new mongoose.Schema({
     adminFee: { type: Number, default: 0 },
     setUpFee: { type: Number, default: 0 },
     additionalFee: { type: Number, default: 0 },
-    notes: { type: String },
   },
   term: {
     lengthInDays: { type: Number, default: 0 },
