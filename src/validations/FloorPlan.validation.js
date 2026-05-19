@@ -79,16 +79,8 @@ const aprValidator = Joi.number()
   .default(0.0);
 
 const interestCalculationDaysValidator = Joi.number()
-  .integer()
-  .min(1)
-  .max(365)
-  .messages({
-    'number.base': errorConstants.FLOOR_PLAN.INTEREST_DAYS_MUST_BE_NUMBER,
-    'number.min': errorConstants.FLOOR_PLAN.INTEREST_DAYS_TOO_LOW,
-    'number.max': errorConstants.FLOOR_PLAN.INTEREST_DAYS_TOO_HIGH,
-    'number.integer': errorConstants.FLOOR_PLAN.INTEREST_DAYS_INTEGER,
-  })
-  .default(30);
+  .allow('', null)
+  .optional();
 
 const feesTypeValidator = enumValidator('FEES_TYPE', [
   'One Time',
@@ -135,12 +127,13 @@ const companyDetailsSchema = Joi.object({
   phone: phoneValidator.required(),
   contactPerson: contactPersonValidator.required(),
   status: statusValidator, // optional, no enum
+  totalInterestRate: Joi.number().min(0).allow(null, ''),
   dateOpened: Joi.date().allow('').optional(),
 }).required();
 
 const rateSchema = Joi.object({
   apr: aprValidator.required(),
-  interestCalculationDays: interestCalculationDaysValidator.required(),
+  interestCalculationDays: interestCalculationDaysValidator.optional(),
 }).required();
 
 const feesSchema = Joi.object({

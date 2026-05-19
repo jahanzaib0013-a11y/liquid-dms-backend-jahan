@@ -91,7 +91,8 @@ export const addVehicle = async (req, res, next) => {
       vendorInfo.billofsales = billofsalesUrl;
       categoryCode = extractCategoryCode(vendorInfo.category);
 
-      const generatedVendorId = await generateVendorId(categoryCode);
+      // New vendorId format uses state + year + serial
+      const generatedVendorId = await generateVendorId(vendorInfo.state, req.user?.userId);
       vendor = new Vendor({
         ...vendorInfo,
         vendorId: generatedVendorId,
@@ -116,7 +117,7 @@ export const addVehicle = async (req, res, next) => {
 
     // 🆔 Generate stockId (atomic, shared with NetTradeIn)
     const vehicleTypeCode = basicDetails?.vehicleType?.toUpperCase(); // e.g., SUV
-    const stockId = await generateStockId(`${categoryCode}-${vehicleTypeCode}`);
+    const stockId = await generateStockId(`${categoryCode}-${vehicleTypeCode}`, req.user?.userId);
 
     // 🚙 Save Vehicle
     const newVehicle = new Vehicle({
@@ -136,6 +137,7 @@ export const addVehicle = async (req, res, next) => {
       vendorInfo: {
         isExistingVendor: vendorInfo.isExistingVendor,
       },
+      createdBy: req.user?.userId,
     });
 
     await newVehicle.save();
@@ -774,7 +776,7 @@ export const getAllVehicles = async (req, res, next) => {
     const { skip, limit: parsedLimit } = paginate(page, limit);
 
     // Fetch all vehicles regardless of completion status
-    const vehicles = await Vehicle.find({ isDeleted: false })
+    const vehicles = await Vehicle.find({ isDeleted: false, createdBy: req.user?.userId })
       .populate([
         { path: 'vendor', select: '-taxIdOrSSN' },
         { path: 'floorPlanDetails.floorPlan' },
@@ -783,7 +785,7 @@ export const getAllVehicles = async (req, res, next) => {
       .limit(parsedLimit)
       .sort({ createdAt: -1 });
 
-    const total = await Vehicle.countDocuments({ isDeleted: false });
+    const total = await Vehicle.countDocuments({ isDeleted: false, createdBy: req.user?.userId });
 
     const vehiclesWithFlags = vehicles.map((vehicle) => {
       const vehicleObject = vehicle.toObject();
@@ -837,7 +839,7 @@ export const getVehicleById = async (req, res, next) => {
     const { id: vehicleId } = req.query;
 
     // 2. Fetch vehicle
-    const vehicle = await Vehicle.findOne({ _id: vehicleId, isDeleted: false }).populate([
+    const vehicle = await Vehicle.findOne({ _id: vehicleId, isDeleted: false, createdBy: req.user?.userId }).populate([
       { path: 'vendor' },
       { path: 'floorPlanDetails.floorPlan' },
     ]);
@@ -886,7 +888,7 @@ export const deleteVehicleById = async (req, res, next) => {
 
     // 2. Soft delete the vehicle and retrieve the updated document
     const deletedVehicle = await Vehicle.findOneAndUpdate(
-      { _id: vehicleId, isDeleted: false },
+      { _id: vehicleId, isDeleted: false, createdBy: req.user?.userId },
       { $set: { isDeleted: true } },
       { new: true }
     );
@@ -934,8 +936,7 @@ export const editVehicle = async (req, res, next) => {
       return next(new ApiError('Invalid vehicle ID format', 400));
     }
 
-    const existingVehicle =
-      await Vehicle.findById(vehicleId).populate('vendor');
+    const existingVehicle = await Vehicle.findOne({ _id: vehicleId, createdBy: req.user?.userId }).populate('vendor');
     if (!existingVehicle) {
       return next(new ApiError('Vehicle not found', 404));
     }

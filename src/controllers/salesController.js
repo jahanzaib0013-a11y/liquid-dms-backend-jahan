@@ -40,6 +40,7 @@ export const createSales = async (req, res, next) => {
     if (customerInfo.isExistingCustomer) {
       customer = await Customer.findOne({
         customerId: customerInfo.customerId,
+        createdBy: req.user?.userId,
       });
       if (!customer) {
 
@@ -53,6 +54,7 @@ export const createSales = async (req, res, next) => {
       // 🆕 Handle New Customer
       const existingCustomer = await Customer.findOne({
         'CustomerInformation.email': customerInfo.CustomerInformation.email,
+        createdBy: req.user?.userId,
       });
       if (existingCustomer) {
         logger.warn({
@@ -64,7 +66,8 @@ export const createSales = async (req, res, next) => {
 
       // Generate customer ID using the same utility as customerController
       const newCustomerId = await generateCustomerId(
-        customerInfo.CustomerInformation.firstName
+        customerInfo.CustomerInformation.firstName,
+        req.user?.userId
       );
 
       // Create new customer
@@ -72,6 +75,7 @@ export const createSales = async (req, res, next) => {
         customerId: newCustomerId,
         CustomerInformation: customerInfo.CustomerInformation,
         IncomeInformation: customerInfo.IncomeInformation,
+        createdBy: req.user?.userId,
       });
 
       await customer.save();
@@ -107,13 +111,14 @@ export const createSales = async (req, res, next) => {
     }
 
     // Generate receipt ID
-    const receiptId = await generateReceiptId();
+    const receiptId = await generateReceiptId(req.user?.userId);
 
     // Create sales record
     const sales = new Sales({
       receiptId: receiptId,
       customerInfo: customer ? customer._id : undefined,
       vehicleInfo: vehicle ? vehicle._id : undefined,
+      createdBy: req.user?.userId,
       isExistingCustomer: Boolean(customerInfo?.isExistingCustomer),
       pricing: {
         isCashSale: req.body?.pricing?.isCashSale ?? undefined,
@@ -241,7 +246,7 @@ export const addSalesDetails = async (req, res, next) => {
     const isReserved = pricing?.isReserved === true;
 
     // 3. Find existing sales record
-    const existingSales = await Sales.findById(salesId);
+    const existingSales = await Sales.findOne({ _id: salesId, createdBy: req.user?.userId });
     if (!existingSales) {
       logger.warn({
         message: `❌ Sales record not found: ${salesId}`,
@@ -279,6 +284,13 @@ export const addSalesDetails = async (req, res, next) => {
       delete sanitizedIncoming.netTradeIn;
     }
     const mergedInput = { ...existingDetails, ...sanitizedIncoming };
+    // Merge billAmount into salesDetails to avoid conflicting update operators
+    if (
+      typeof salesDetails?.billAmount === 'number' &&
+      !Number.isNaN(salesDetails.billAmount)
+    ) {
+      mergedInput.billAmount = Math.max(0, Number(salesDetails.billAmount));
+    }
 
     let setPayload;
     let unsetPayload;
@@ -361,6 +373,8 @@ export const addSalesDetails = async (req, res, next) => {
     if (typeof salesDetails?.total === 'number' && !Number.isNaN(salesDetails.total)) {
       setPayload.totalAmount = Math.max(0, Number(salesDetails.total));
     }
+
+    // billAmount already merged into pricing.salesDetails above
 
     const updateOps = { $set: setPayload };
     if (unsetPayload) updateOps.$unset = unsetPayload;
@@ -472,7 +486,7 @@ export const getSalesById = async (req, res, next) => {
       return next(new ApiError('Sales ID is required', 400));
     }
 
-    const sales = await Sales.findById(id).populate(['customerInfo']);
+    const sales = await Sales.findOne({ _id: id, createdBy: req.user?.userId }).populate(['customerInfo']);
 
     if (!sales) {
       logger.warn({

@@ -15,6 +15,8 @@ const floorPlanSchema = new mongoose.Schema({
       default: 'Active',
       required: true,
     },
+    // Client-provided aggregate total interest rate for this company
+    totalInterestRate: { type: Number, default: 0 },
     dateOpened: { type: Date },
   },
 
@@ -60,6 +62,7 @@ const floorPlanSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'user', index: true },
 });
 
 // Friendly duplicate key error handling for FloorPlan

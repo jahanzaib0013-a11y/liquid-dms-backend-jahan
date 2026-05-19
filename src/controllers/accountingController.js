@@ -155,6 +155,8 @@ export const createAccounting = async (req, res, next) => {
       }
     }
 
+    // set ownership
+    payload.createdBy = req.user?.userId;
     const entry = await Accounting.create(payload);
 
     // Update Sales.nextPaymentDueDate to the applied due date
@@ -194,8 +196,8 @@ export const getSalesByCustomerId = async (req, res, next) => {
       return next(new ApiError('Customer ID is required', 400));
     }
 
-    // First find the customer by customerId
-    const customer = await Customer.findOne({ customerId: customerId });
+    // First find the customer by customerId for this user only
+    const customer = await Customer.findOne({ customerId: customerId, createdBy: req.user?.userId });
     if (!customer) {
       logger.warn({
         message: `❌ Customer not found for customer ID: ${customerId}`,
@@ -205,7 +207,7 @@ export const getSalesByCustomerId = async (req, res, next) => {
     }
 
     // Then find sales record that references this customer
-    const sales = await Sales.findOne({ customerInfo: customer._id })
+    const sales = await Sales.findOne({ customerInfo: customer._id, createdBy: req.user?.userId })
       .sort({ createdAt: -1 }) // Get the most recent sales record
       .populate(['customerInfo', 'vehicleInfo']);
 
@@ -252,6 +254,7 @@ export const getSalesByCustomerId = async (req, res, next) => {
       stockId: salesObj.vehicleInfo?.stockId || null,
       vin: salesObj.vehicleInfo?.basicDetails?.vin || null,
       make: salesObj.vehicleInfo?.basicDetails?.make || null,
+      billAmount: salesObj.pricing?.salesDetails?.billAmount ?? null,
       salesType: salesObj.pricing?.salesType || null,
       paymentSchedule:
         salesObj.pricing?.paymentSchedule?.paymentSchedule || null,
@@ -296,6 +299,7 @@ export const getAllAccountings = async (req, res, next) => {
     };
 
     const pipeline = [
+      { $match: { createdBy: req.user?.userId } },
       { $sort: baseSort },
       {
         $group: {
@@ -372,9 +376,8 @@ export const getAllAccountings = async (req, res, next) => {
     ];
 
     const countPipeline = [
-      {
-        $group: { _id: '$AccountingDetails.receiptNumber' },
-      },
+      { $match: { createdBy: req.user?.userId } },
+      { $group: { _id: '$AccountingDetails.receiptNumber' } },
       { $count: 'count' },
     ];
 
@@ -413,7 +416,7 @@ export const getAccountingById = async (req, res, next) => {
       return next(new ApiError('Invalid accounting ID format', 400));
     }
 
-    const doc = await Accounting.findById(id);
+    const doc = await Accounting.findOne({ _id: id, createdBy: req.user?.userId });
     if (!doc) {
       return next(new ApiError('Accounting not found', 404));
     }
@@ -434,6 +437,7 @@ export const getAccountingByVehicleId = async (req, res, next) => {
     // Direct query by AccountingDetails.stockId if stored
     const direct = await Accounting.find({
       'AccountingDetails.stockId': stockId,
+      createdBy: req.user?.userId,
     })
       .sort({ createdAt: -1 })
       .lean();
@@ -468,6 +472,7 @@ export const getAccountingByVehicleId = async (req, res, next) => {
 
     const accountings = await Accounting.find({
       'AccountingDetails.receiptNumber': { $in: receiptIds },
+      createdBy: req.user?.userId,
     })
       .sort({ createdAt: -1 })
       .lean();

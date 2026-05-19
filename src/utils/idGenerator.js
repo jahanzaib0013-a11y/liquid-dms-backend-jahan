@@ -18,15 +18,25 @@ export const getNextCounter = async (counterKey) => {
   return counter.seq;
 };
 
+// Normalize state to uppercase letters only, fallback to 'NA'
+const normalizeState = (state) => {
+  const s = String(state || '').toUpperCase().replace(/[^A-Z]/g, '');
+  return s || 'NA';
+};
+
 /**
- * Generate Vendor ID with counter (enhances existing logic)
- * @param {string} category - Vendor category (e.g., 'AU', 'COM', 'IND')
+ * Generate Vendor ID: STATE-YYYY-#### (serial per tenant)
+ * @param {string} state - Vendor state (e.g., 'TX', 'California')
+ * @param {string} tenantId - Current user's ObjectId string
  * @returns {Promise<string>} - Generated vendor ID
  */
-export const generateVendorId = async (category) => {
-  const counterKey = `vendor:${category}`;
+export const generateVendorId = async (state, tenantId) => {
+  const year = new Date().getFullYear();
+  const stateCode = normalizeState(state);
+  // Keep serial continuous per tenant (not split by state/year) to preserve existing numbering
+  const counterKey = `vendor:${tenantId}`;
   const sequence = await getNextCounter(counterKey);
-  return `VEN-${category}-${String(sequence).padStart(4, '0')}`;
+  return `${stateCode}-${year}-${String(sequence).padStart(4, '0')}`;
 };
 
 /**
@@ -34,8 +44,8 @@ export const generateVendorId = async (category) => {
  * @param {string} firstName - Customer's first name
  * @returns {Promise<string>} - Generated customer ID
  */
-export const generateCustomerId = async (firstName) => {
-  const counterKey = 'customer';
+export const generateCustomerId = async (firstName, tenantId) => {
+  const counterKey = `customer:${tenantId}`;
   const sequence = await getNextCounter(counterKey);
   const cleanFirstName = firstName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
   return `CUS-${cleanFirstName}-${String(sequence).padStart(4, '0')}`;
@@ -45,9 +55,9 @@ export const generateCustomerId = async (firstName) => {
  * Generate Receipt ID with counter (enhances existing logic)
  * @returns {Promise<string>} - Generated receipt ID
  */
-export const generateReceiptId = async () => {
+export const generateReceiptId = async (tenantId) => {
   const currentYear = new Date().getFullYear();
-  const counterKey = `receipt:${currentYear}`;
+  const counterKey = `receipt:${tenantId}:${currentYear}`;
   const sequence = await getNextCounter(counterKey);
   return `RC-${currentYear}-${String(sequence).padStart(4, '0')}`;
 };
@@ -57,8 +67,8 @@ export const generateReceiptId = async () => {
  * @param {string} prefix - Stock ID prefix (e.g., 'AU-SUV', 'COM-CAR')
  * @returns {Promise<string>} - Generated stock ID
  */
-export const generateStockId = async (prefix) => {
-  const counterKey = `stock:${prefix}`;
+export const generateStockId = async (prefix, tenantId) => {
+  const counterKey = `stock:${tenantId}:${prefix}`;
   const sequence = await getNextCounter(counterKey);
   return `${prefix}-${String(sequence).padStart(4, '0')}`;
 };

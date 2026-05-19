@@ -92,6 +92,26 @@ const SalesSchema = new mongoose.Schema(
         pickUpNote: {
           type: String,
         },
+        // ERT fee moved here from paymentDetails
+        ertFee: {
+          type: Number,
+          min: 0,
+        },
+        // Moved here from paymentDetails
+        apr: {
+          type: Number,
+          min: 0,
+        },
+        totalLoanAmount: {
+          type: Number,
+          min: 0,
+        },
+        // Bill amount moved under salesDetails
+        billAmount: {
+          type: Number,
+          min: 0,
+          default: 0,
+        },
         // Optional client-provided total for UI; server may override
         total: {
           type: Number,
@@ -101,9 +121,6 @@ const SalesSchema = new mongoose.Schema(
       // Payment Schedule (Buy Here Pay Here only)
       paymentSchedule: {
         paymentSchedule: {
-          type: String,
-        },
-        financingCalculationMethod: {
           type: String,
         },
         numberOfPayments: {
@@ -123,15 +140,11 @@ const SalesSchema = new mongoose.Schema(
       },
       // Payment Details (Buy Here Pay Here only)
       paymentDetails: {
-        totalLoanAmount: {
-          type: Number,
-          min: 0,
-        },
         downPayment1: {
           type: Number,
           min: 0,
         },
-        amountToFinance: {
+        installmentAmount: {
           type: Number,
           min: 0,
         },
@@ -144,15 +157,6 @@ const SalesSchema = new mongoose.Schema(
         note: {
           type: String,
         },
-        // Buy Here Pay Here specific fields
-        apr: {
-          type: Number,
-          min: 0,
-        },
-        ertFee: {
-          type: Number,
-          min: 0,
-        },
       },
     },
 
@@ -162,6 +166,8 @@ const SalesSchema = new mongoose.Schema(
       min: 0,
       default: 0,
     },
+    // Ownership
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'user', index: true },
     // Persist whether sale used an existing customer or a new one
     isExistingCustomer: {
       type: Boolean,
@@ -201,7 +207,7 @@ SalesSchema.pre('save', function (next) {
   total -= sd.deposit ?? 0;
 
   if (pricing.isCashSale === false) {
-    total += pricing.paymentDetails?.ertFee ?? 0;
+    total += sd.ertFee ?? 0;
   }
 
   // dealerCosts are informational; do not add removed totalDealerCosts
