@@ -99,8 +99,7 @@ const customerInfoSchema = Joi.object({
       hearAboutUsOther: Joi.when('hearAboutUs', {
         is: 'Other',
         then: Joi.string().trim().required().messages({
-          'string.base':
-            errorConstants.SALES.HEAR_ABOUT_US_OTHER_MUST_BE_STRING,
+          'string.base': errorConstants.SALES.HEAR_ABOUT_US_OTHER_MUST_BE_STRING,
           'string.empty': errorConstants.SALES.HEAR_ABOUT_US_OTHER_REQUIRED,
           'any.required': errorConstants.SALES.HEAR_ABOUT_US_OTHER_REQUIRED,
         }),
@@ -163,19 +162,16 @@ const salesDetailsSchema = Joi.object({
       })
     )
     .default([]),
-  dealerServiceFee: optionalNumber('DEALER_SERVICE_FEE'),
+  // dealerServiceFee removed
   netTradeIn: optionalNumber('NET_TRADE_IN'),
   deposit: optionalNumber('DEPOSIT'),
-  paymentType: enumValidator('PAYMENT_TYPE', ['Manual', 'Card', 'Cash']),
+  paymentType: Joi.string().valid('Manual', 'Card', 'Cash').optional(),
   dateDepositReceived: Joi.date().default(Date.now),
   enterYourInitials: optionalString('INITIALS'),
   pickUpNote: optionalString('PICKUP_NOTE'),
 });
 
-// 🔹 Cash Sales Details Schema
-const cashSalesDetailsSchema = Joi.object({
-  serviceContract: optionalNumber('SERVICE_CONTRACT'),
-});
+// 🔹 Cash Sales Details Schema removed (legacy support dropped)
 
 // 🔹 Buy Here Pay Here Details Schema
 const buyHerePayHereDetailsSchema = Joi.object({
@@ -240,7 +236,7 @@ export const addSalesDetailsSchema = Joi.object({
           })
         )
         .default([]),
-      dealerServiceFee: Joi.number().min(0).required(),
+      // dealerServiceFee removed
       netTradeIn: Joi.forbidden(),
       deposit: Joi.number().min(0).when(Joi.ref('..isCashSale'), {
         is: true,
@@ -253,7 +249,9 @@ export const addSalesDetailsSchema = Joi.object({
       dateDepositReceived: Joi.date().optional(),
       enterYourInitials: Joi.string().optional(),
       pickUpNote: Joi.string().allow('', null).optional(),
-      serviceContract: Joi.number().min(0).optional(),
+      // serviceContract removed
+      // Allow client to set final total that becomes totalAmount
+      total: Joi.number().min(0).optional(),
     }).required(),
     paymentSchedule: Joi.when('isCashSale', {
       is: false,
@@ -316,7 +314,6 @@ export const addSalesSchema = Joi.object({
   vehicleInfo: vehicleInfoSchema.optional(),
   salesType: Joi.string().optional(),
   salesDetails: salesDetailsSchema.optional(),
-  cashSalesDetails: cashSalesDetailsSchema.optional(),
   buyHerePayHereDetails: buyHerePayHereDetailsSchema.optional(),
   // salesStatus removed
 }).optional();

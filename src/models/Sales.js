@@ -65,10 +65,6 @@ const SalesSchema = new mongoose.Schema(
             calculatedAmount: { type: Number, min: 0 },
           },
         ],
-        dealerServiceFee: {
-          type: Number,
-          min: 0,
-        },
         // netTradeIn numeric amount removed per requirement. Use netTradeInId link only.
         netTradeInEnabled: {
           type: Boolean,
@@ -96,8 +92,8 @@ const SalesSchema = new mongoose.Schema(
         pickUpNote: {
           type: String,
         },
-        // Cash sales specific fields
-        serviceContract: {
+        // Optional client-provided total for UI; server may override
+        total: {
           type: Number,
           min: 0,
         },
@@ -166,6 +162,11 @@ const SalesSchema = new mongoose.Schema(
       min: 0,
       default: 0,
     },
+    // Persist whether sale used an existing customer or a new one
+    isExistingCustomer: {
+      type: Boolean,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -184,18 +185,22 @@ SalesSchema.pre('save', function (next) {
   const sd = this.pricing?.salesDetails || {};
   const pricing = this.pricing || {};
 
+  // If client provided a salesDetails.total, prefer that as the totalAmount
+  if (typeof sd.total === 'number' && !Number.isNaN(sd.total)) {
+    this.totalAmount = Math.max(0, Number(sd.total));
+    return next();
+  }
+
   let total = 0;
   total += sd.vehiclePrice ?? 0;
   total += sd.governmentFees ?? 0;
   total += sd.salesTax ?? 0;
   total += sd.otherTaxes ?? 0;
-  total += sd.dealerServiceFee ?? 0;
+  // dealerServiceFee removed
   // netTradeIn numeric value removed; do not subtract
   total -= sd.deposit ?? 0;
 
-  if (pricing.isCashSale === true) {
-    total += sd.serviceContract ?? 0;
-  } else if (pricing.isCashSale === false) {
+  if (pricing.isCashSale === false) {
     total += pricing.paymentDetails?.ertFee ?? 0;
   }
 

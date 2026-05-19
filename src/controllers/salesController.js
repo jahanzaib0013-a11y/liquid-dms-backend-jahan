@@ -1,4 +1,5 @@
 import Sales from '../models/Sales.js';
+import mongoose from 'mongoose';
 import Customer from '../models/customer.js';
 import Vehicle from '../models/vehicle.js';
 import ApiError from '../utils/ApiError.js';
@@ -41,6 +42,7 @@ export const createSales = async (req, res, next) => {
         customerId: customerInfo.customerId,
       });
       if (!customer) {
+
         logger.warn({
           message: `❌ Customer not found: ${customerInfo.customerId}`,
           timestamp: new Date().toISOString(),
@@ -112,6 +114,7 @@ export const createSales = async (req, res, next) => {
       receiptId: receiptId,
       customerInfo: customer ? customer._id : undefined,
       vehicleInfo: vehicle ? vehicle._id : undefined,
+      isExistingCustomer: Boolean(customerInfo?.isExistingCustomer),
       pricing: {
         isCashSale: req.body?.pricing?.isCashSale ?? undefined,
         salesType: req.body?.pricing?.salesType ?? undefined,
@@ -156,6 +159,9 @@ export const createSales = async (req, res, next) => {
       createdAt: salesObj.createdAt,
       updatedAt: salesObj.updatedAt,
 
+      // Persisted flag
+      isExistingCustomer: salesObj.isExistingCustomer,
+
       // Customer Information Section
       customerInfo: {
         _id: salesObj.customerInfo?._id,
@@ -165,6 +171,7 @@ export const createSales = async (req, res, next) => {
         createdAt: salesObj.customerInfo?.createdAt,
         updatedAt: salesObj.customerInfo?.updatedAt,
       },
+
 
       // Vehicle Reference (ID only)
       vehicleInfo: salesObj.vehicleInfo ? String(salesObj.vehicleInfo) : null,
@@ -350,6 +357,11 @@ export const addSalesDetails = async (req, res, next) => {
       setPayload['pricing.isReserved'] = isReserved;
     }
 
+    // Always persist totalAmount from payload if provided
+    if (typeof salesDetails?.total === 'number' && !Number.isNaN(salesDetails.total)) {
+      setPayload.totalAmount = Math.max(0, Number(salesDetails.total));
+    }
+
     const updateOps = { $set: setPayload };
     if (unsetPayload) updateOps.$unset = unsetPayload;
 
@@ -390,6 +402,7 @@ export const addSalesDetails = async (req, res, next) => {
     const structuredResponse = {
       _id: salesObj._id,
       receiptId: salesObj.receiptId,
+      isExistingCustomer: salesObj.isExistingCustomer,
       totalAmount: salesObj.totalAmount,
       createdAt: salesObj.createdAt,
       updatedAt: salesObj.updatedAt,
@@ -403,6 +416,7 @@ export const addSalesDetails = async (req, res, next) => {
         createdAt: salesObj.customerInfo?.createdAt,
         updatedAt: salesObj.customerInfo?.updatedAt,
       },
+
 
       // Pricing Section - Conditional based on sales type
       pricing: {
@@ -476,7 +490,7 @@ export const getSalesById = async (req, res, next) => {
       totalAmount: salesObj.totalAmount,
       createdAt: salesObj.createdAt,
       updatedAt: salesObj.updatedAt,
-
+      isExistingCustomer: salesObj.isExistingCustomer,
       // Customer Information Section
       customerInfo: {
         _id: salesObj.customerInfo?._id,
@@ -491,6 +505,7 @@ export const getSalesById = async (req, res, next) => {
       pricing: {
         isCashSale: salesObj.pricing?.isCashSale,
         salesType: salesObj.pricing?.salesType,
+        isReserved: salesObj.pricing?.isReserved,
         salesDetails: salesObj.pricing?.salesDetails || {},
         // Buy Here Pay Here specific data
         ...(!salesObj.pricing?.isCashSale && {
@@ -570,9 +585,7 @@ export const editSales = async (req, res, next) => {
           'CustomerInformation.email': customerInfo.CustomerInformation?.email,
         });
         if (existingCustomer) {
-          return next(
-            new ApiError(errorConstants.SALES.EMAIL_ALREADY_EXISTS, 409)
-          );
+          return next(new ApiError(errorConstants.CUSTOMER.ALREADY_EXISTS, 409));
         }
 
         // Generate customer ID using the same utility as customerController
@@ -586,7 +599,15 @@ export const editSales = async (req, res, next) => {
           IncomeInformation: customerInfo.IncomeInformation,
         });
 
-        await customer.save();
+        try {
+          await customer.save();
+        } catch (e) {
+          const isDup = e?.code === 11000 || /E11000 duplicate key/i.test(String(e?.message || ''));
+          if (isDup) {
+            return next(new ApiError(errorConstants.CUSTOMER.ALREADY_EXISTS, 409));
+          }
+          throw e;
+        }
       }
 
       // Only set when we actually handled customer
@@ -668,8 +689,20 @@ export const showAllSales = async (req, res, next) => {
       return next(new ApiError(errorConstants.SALES.SALES_NOT_FOUND, 404));
     }
 
+    // Normalize response to always include pricing.isReserved explicitly
+    const normalized = allSales.map((s) => {
+      const o = s.toObject();
+      return {
+        ...o,
+        pricing: {
+          ...o.pricing,
+          isReserved: o.pricing?.isReserved,
+        },
+      };
+    });
+
     return SuccessHandler(
-      allSales,
+      normalized,
       200,
       'All sales records fetched successfully',
       res
@@ -770,7 +803,10 @@ export const updateNetTradeInInfo = async (req, res, next) => {
     logger.info('🔁 Update net trade-in info request received');
 
     const { id } = req.query;
-    if (!id) return next(new ApiError('Sales ID is required', 400));
+    // Validate Sales ID strictly to prevent CastError
+    if (!id || id === 'null' || id === 'undefined' || !mongoose.Types.ObjectId.isValid(id)) {
+      return next(new ApiError('Valid Sales ID is required', 400));
+    }
 
     const { enabled, netTradeInId } = req.body || {};
     if (enabled === undefined)

@@ -233,6 +233,7 @@ const vehicleSchema = new mongoose.Schema(
       buyersFee: { type: Number, default: 0 },
       transportationFee: { type: Number, default: 0 },
       lotFee: { type: Number, default: 0 },
+      // Client-provided overall total cost
       addedCosts: [
         {
           title: String,
@@ -243,6 +244,9 @@ const vehicleSchema = new mongoose.Schema(
       ],
       addedCostsTotal: Number,
     },
+    totalcost: { type: Number, default: 0 },
+    // Client-provided overall total interest rate (aggregated)
+    totalinterestRate: { type: Number, default: 0 },
 
     floorPlanDetails: {
       isFloorPlanned: { type: Boolean, default: false },
