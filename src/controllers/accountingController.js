@@ -288,22 +288,114 @@ export const getAllAccountings = async (req, res, next) => {
     const { page = 1, limit = 10 } = req.query;
     const { skip, limit: parsedLimit } = paginate(page, limit);
 
-    const [accountings, total] = await Promise.all([
-      Accounting.find({}).sort({ createdAt: -1 }).skip(skip).limit(parsedLimit),
-      Accounting.countDocuments({}),
+    // Build aggregation to get only the most recent installment per receiptNumber
+    const baseSort = {
+      'AccountingDetails.receiptNumber': 1,
+      'AccountingDetails.installmentNumber': -1,
+      createdAt: -1,
+    };
+
+    const pipeline = [
+      { $sort: baseSort },
+      {
+        $group: {
+          _id: '$AccountingDetails.receiptNumber',
+          doc: { $first: '$$ROOT' },
+        },
+      },
+      { $replaceRoot: { newRoot: '$doc' } },
+      // Compute installment count per receiptNumber
+      {
+        $lookup: {
+          from: 'accountings',
+          let: { receipt: '$AccountingDetails.receiptNumber' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$AccountingDetails.receiptNumber', '$$receipt'],
+                },
+              },
+            },
+            { $count: 'count' },
+          ],
+          as: 'installmentCounts',
+        },
+      },
+      {
+        $addFields: {
+          installmentCount: {
+            $ifNull: [{ $arrayElemAt: ['$installmentCounts.count', 0] }, 0],
+          },
+        },
+      },
+      // Derive status: cleared if all installments completed, else pending
+      {
+        $addFields: {
+          status: {
+            $cond: [
+              {
+                $and: [
+                  {
+                    $gte: [
+                      {
+                        $ifNull: [
+                          '$AccountingDetails.totalNumberOfPayments',
+                          -1,
+                        ],
+                      },
+                      0,
+                    ],
+                  },
+                  {
+                    $gte: [
+                      '$installmentCount',
+                      {
+                        $ifNull: [
+                          '$AccountingDetails.totalNumberOfPayments',
+                          999999,
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+              'cleared',
+              'pending',
+            ],
+          },
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: parsedLimit },
+    ];
+
+    const countPipeline = [
+      {
+        $group: { _id: '$AccountingDetails.receiptNumber' },
+      },
+      { $count: 'count' },
+    ];
+
+    const [accountings, countResult] = await Promise.all([
+      Accounting.aggregate(pipeline),
+      Accounting.aggregate(countPipeline),
     ]);
+
+    const total = countResult?.[0]?.count || 0;
 
     const response = {
       totalAccountings: total,
       currentPage: Number(page),
-      totalPages: Math.ceil(total / parsedLimit),
+      totalPages: Math.ceil(total / parsedLimit) || 0,
       accountings,
     };
 
     return SuccessHandler(
       response,
       200,
-      'Accounting entries fetched successfully',
+      'Latest installment per receipt fetched successfully',
       res
     );
   } catch (error) {
@@ -329,6 +421,71 @@ export const getAccountingById = async (req, res, next) => {
     return SuccessHandler(doc, 200, 'Accounting fetched successfully', res);
   } catch (error) {
     logger.error('❌ Get accounting by ID error:', error);
+    next(new ApiError(error.message || 'Internal Server Error', 500));
+  }
+};
+
+// ✅ Get all accounting receipts by Vehicle ID
+export const getAccountingByVehicleId = async (req, res, next) => {
+  try {
+    const stockId = (req.query.id || '').trim();
+    if (!stockId) return next(new ApiError('Stock ID is required', 400));
+
+    // Direct query by AccountingDetails.stockId if stored
+    const direct = await Accounting.find({
+      'AccountingDetails.stockId': stockId,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // If found directly, return
+    if (direct && direct.length > 0) {
+      return SuccessHandler(
+        { receipts: direct, count: direct.length, stockId },
+        200,
+        'Accounting receipts fetched by stock ID',
+        res
+      );
+    }
+
+    // Fallback: resolve sales by vehicle stockId -> receiptIds -> accounting
+    const sales = await Sales.find({})
+      .populate({ path: 'vehicleInfo', select: 'stockId' })
+      .lean();
+    const receiptIds = (sales || [])
+      .filter((s) => s?.vehicleInfo?.stockId === stockId)
+      .map((s) => s?.receiptId)
+      .filter(Boolean);
+
+    if (receiptIds.length === 0) {
+      return SuccessHandler(
+        { receipts: [], count: 0, stockId },
+        200,
+        'No receipts found for stock ID',
+        res
+      );
+    }
+
+    const accountings = await Accounting.find({
+      'AccountingDetails.receiptNumber': { $in: receiptIds },
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const response = {
+      receipts: accountings,
+      count: accountings.length,
+      stockId,
+    };
+
+    return SuccessHandler(
+      response,
+      200,
+      'Accounting receipts fetched by vehicle ID',
+      res
+    );
+  } catch (error) {
+    logger.error('❌ Get accounting by vehicle ID error:', error);
     next(new ApiError(error.message || 'Internal Server Error', 500));
   }
 };

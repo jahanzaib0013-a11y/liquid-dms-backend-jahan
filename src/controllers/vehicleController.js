@@ -19,10 +19,7 @@ import SuccessHandler from '../utils/SuccessHandler.js';
 import mongoose from 'mongoose';
 import paginate from '../utils/paginate.js';
 import { getFullImageUrl } from '../utils/url.js';
-import {
-  checkFloorPlanStatusForVehicle,
-  checkFloorPlanStatusById,
-} from '../utils/floorPlanUtils.js';
+import { checkFloorPlanStatusForVehicle } from '../utils/floorPlanUtils.js';
 
 // 🔧 Convert file path to public URL
 
@@ -268,6 +265,7 @@ export const addVehicleCost = async (req, res, next) => {
               'CompanyDetails.companyName': {
                 $regex: new RegExp(`^${escaped}$`, 'i'),
               },
+              isDeleted: false,
             });
 
             if (!existingFloorPlan) {
@@ -279,10 +277,6 @@ export const addVehicleCost = async (req, res, next) => {
               );
             }
             floorPlanId = existingFloorPlan._id;
-            // Ensure existing floor plan becomes Active when a vehicle uses it
-            await FloorPlan.findByIdAndUpdate(floorPlanId, {
-              'CompanyDetails.status': 'Active',
-            });
           } else {
             return next(
               new ApiError(
@@ -337,6 +331,7 @@ export const addVehicleCost = async (req, res, next) => {
             if (newCompanyName) {
               const existingFloorPlanWithSameName = await FloorPlan.findOne({
                 'CompanyDetails.companyName': newCompanyName,
+                isDeleted: false,
               });
 
               if (existingFloorPlanWithSameName) {
@@ -407,13 +402,7 @@ export const addVehicleCost = async (req, res, next) => {
       return next(new ApiError('Vehicle not found', 404));
     }
 
-    // 5.a Force-persist Active on the linked floor plan (guard against any race/merge issues)
-    const linkedId = updateData['floorPlanDetails.floorPlan'];
-    if (linkedId) {
-      await FloorPlan.findByIdAndUpdate(linkedId, {
-        'CompanyDetails.status': 'Active',
-      });
-    }
+    // 5.a Removed force-activation of linked floor plan
 
     // 5. Check and update floor plan status after vehicle update
     await checkFloorPlanStatusForVehicle(vehicleId);
@@ -776,7 +765,7 @@ export const getAllVehicles = async (req, res, next) => {
     const { skip, limit: parsedLimit } = paginate(page, limit);
 
     // Fetch all vehicles regardless of completion status
-    const vehicles = await Vehicle.find({})
+    const vehicles = await Vehicle.find({ isDeleted: false })
       .populate([
         { path: 'vendor', select: '-taxIdOrSSN' },
         { path: 'floorPlanDetails.floorPlan' },
@@ -785,7 +774,7 @@ export const getAllVehicles = async (req, res, next) => {
       .limit(parsedLimit)
       .sort({ createdAt: -1 });
 
-    const total = await Vehicle.countDocuments({});
+    const total = await Vehicle.countDocuments({ isDeleted: false });
 
     const vehiclesWithFlags = vehicles.map((vehicle) => {
       const vehicleObject = vehicle.toObject();
@@ -838,7 +827,7 @@ export const getVehicleById = async (req, res, next) => {
     const { id: vehicleId } = req.query;
 
     // 2. Fetch vehicle
-    const vehicle = await Vehicle.findById(vehicleId).populate([
+    const vehicle = await Vehicle.findOne({ _id: vehicleId, isDeleted: false }).populate([
       { path: 'vendor' },
       { path: 'floorPlanDetails.floorPlan' },
     ]);
@@ -885,20 +874,20 @@ export const deleteVehicleById = async (req, res, next) => {
 
     const { id: vehicleId } = req.query;
 
-    // 2. Delete the vehicle and retrieve the deleted document
-    const deletedVehicle = await Vehicle.findByIdAndDelete(vehicleId);
+    // 2. Soft delete the vehicle and retrieve the updated document
+    const deletedVehicle = await Vehicle.findOneAndUpdate(
+      { _id: vehicleId, isDeleted: false },
+      { $set: { isDeleted: true } },
+      { new: true }
+    );
 
     if (!deletedVehicle) {
       return next(new ApiError('Vehicle not found', 404));
     }
 
-    // 3. Check floor plan status after deleting vehicle
-    const floorPlanId = deletedVehicle.floorPlanDetails?.floorPlan;
-    if (floorPlanId) {
-      await checkFloorPlanStatusById(floorPlanId);
-    }
+    // 3. Do not adjust floor plan status on soft delete
 
-    return SuccessHandler(null, 200, 'Vehicle deleted successfully', res);
+    return SuccessHandler(null, 200, 'Vehicle deleted successfully (soft deleted)', res);
   } catch (error) {
     logger.error('❌ Delete vehicle error:', error);
     next(new ApiError(error.message, 500));

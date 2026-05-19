@@ -115,23 +115,23 @@ export const createSales = async (req, res, next) => {
       pricing: {
         isCashSale: req.body?.pricing?.isCashSale ?? undefined,
         salesType: req.body?.pricing?.salesType ?? undefined,
+        isReserved: req.body?.pricing?.isReserved ?? false,
       },
       // Sales status is stored on Vehicle; keep Sales minimal
     });
 
     const salesResponse = await sales.save();
 
-    // Update vehicle's salesId and status when sales record is created
+    // Link vehicle to this sales record but keep status Pending until details are added
     if (vehicle && vehicle._id) {
       try {
         await Vehicle.findByIdAndUpdate(vehicle._id, {
           $set: {
             salesId: salesResponse._id,
-            salesStatus: 'Sold',
           },
         });
         logger.info({
-          message: `✅ Vehicle ${vehicle._id} linked to sales record ${salesResponse._id}`,
+          message: `✅ Vehicle ${vehicle._id} linked to sales record ${salesResponse._id} (status remains Pending)`,
           timestamp: new Date().toISOString(),
         });
       } catch (vehicleUpdateError) {
@@ -173,6 +173,7 @@ export const createSales = async (req, res, next) => {
       pricing: {
         isCashSale: salesObj.pricing?.isCashSale,
         salesType: salesObj.pricing?.salesType,
+        isReserved: salesObj.pricing?.isReserved,
         salesDetails: salesObj.pricing?.salesDetails || {},
         // Buy Here Pay Here specific data
         ...(!salesObj.pricing?.isCashSale && {
@@ -407,6 +408,7 @@ export const addSalesDetails = async (req, res, next) => {
       pricing: {
         isCashSale: salesObj.pricing?.isCashSale,
         salesType: salesObj.pricing?.salesType,
+        isReserved: salesObj.pricing?.isReserved,
         salesDetails: salesObj.pricing?.salesDetails,
         // Buy Here Pay Here specific data
         ...(!salesObj.pricing?.isCashSale && {
