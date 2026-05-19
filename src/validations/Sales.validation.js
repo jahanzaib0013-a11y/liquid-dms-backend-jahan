@@ -70,6 +70,7 @@ const customerInfoSchema = Joi.object({
       firstName: requiredString('FIRST_NAME'),
       middleName: optionalString('MIDDLE_NAME'),
       lastName: requiredString('LAST_NAME'),
+
       Street: requiredString('STREET'),
       City: requiredString('CITY'),
       State: requiredString('STATE'),
@@ -154,14 +155,7 @@ const salesDetailsSchema = Joi.object({
   dealerServiceFee: optionalNumber('DEALER_SERVICE_FEE'),
   netTradeIn: optionalNumber('NET_TRADE_IN'),
   deposit: optionalNumber('DEPOSIT'),
-  paymentType: enumValidator('PAYMENT_TYPE', [
-    'Cash',
-    'Check',
-    'Credit Card',
-    'Debit Card',
-    'Bank Transfer',
-    'Other',
-  ]),
+  paymentType: enumValidator('PAYMENT_TYPE', ['Manual', 'Card', 'Cash']),
   dateDepositReceived: Joi.date().default(Date.now),
   enterYourInitials: optionalString('INITIALS'),
   pickUpNote: optionalString('PICKUP_NOTE'),
@@ -181,11 +175,7 @@ const buyHerePayHereDetailsSchema = Joi.object({
   }),
   serviceContract: optionalNumber('SERVICE_CONTRACT'),
   ertFee: optionalNumber('ERT_FEE'),
-  paymentSchedule: enumValidator('PAYMENT_SCHEDULE', [
-    'Weekly',
-    'Bi-Weekly',
-    'Monthly',
-  ]).default('Monthly'),
+  paymentSchedule: Joi.string().trim().required().default('Monthly'),
   financingCalculationMethod: enumValidator('FINANCING_CALCULATION_METHOD', [
     'Simple Interest',
     'Add-On Interest',
@@ -214,7 +204,6 @@ export const createSalesSchema = Joi.object({
 
 // 🔹 Step 2: Sales Details Schema (Updated to match UI structure)
 export const addSalesDetailsSchema = Joi.object({
-  isCashSale: Joi.boolean().required(),
   pricing: Joi.object({
     isCashSale: Joi.boolean().required(),
     salesType: Joi.string().optional(),
@@ -241,26 +230,40 @@ export const addSalesDetailsSchema = Joi.object({
         .default([]),
       dealerServiceFee: Joi.number().min(0).required(),
       netTradeIn: Joi.forbidden(),
-      deposit: Joi.number().min(0).required(),
-      paymentType: Joi.string()
-        .valid('Cash', 'Check', 'Credit Card', 'Other')
-        .required(),
-      dateDepositReceived: Joi.date().required(),
+      deposit: Joi.number().min(0).when(Joi.ref('..isCashSale'), {
+        is: true,
+        then: Joi.required(),
+        otherwise: Joi.optional(),
+      }),
+      // Allow for both cash and BHPH
+      ertFee: Joi.number().min(0).optional(),
+      paymentType: Joi.string().valid('Manual', 'Card', 'Cash').optional(),
+      dateDepositReceived: Joi.date().optional(),
       enterYourInitials: Joi.string().optional(),
-      pickUpNote: Joi.string().optional(),
+      pickUpNote: Joi.string().allow('', null).optional(),
       serviceContract: Joi.number().min(0).optional(),
     }).required(),
     paymentSchedule: Joi.when('isCashSale', {
       is: false,
       then: Joi.object({
-        paymentSchedule: Joi.string()
-          .valid('Monthly', 'Weekly', 'Bi-weekly')
-          .required(),
-        financingCalculationMethod: Joi.string()
-          .valid('Simple Interest', 'Payment Amount')
-          .required(),
+        paymentSchedule: Joi.string().trim().required(),
+        financingCalculationMethod: Joi.string().trim().required(),
         numberOfPayments: Joi.number().min(1).required(),
         firstPaymentStarts: Joi.date().required(),
+        firstPaymentDate: Joi.when('paymentSchedule', {
+          is: 'Semi-Monthly',
+          then: Joi.date().required(),
+          otherwise: Joi.alternatives()
+            .try(Joi.date(), Joi.string().allow('', null))
+            .optional(),
+        }),
+        secondPaymentDate: Joi.when('paymentSchedule', {
+          is: 'Semi-Monthly',
+          then: Joi.date().required(),
+          otherwise: Joi.alternatives()
+            .try(Joi.date(), Joi.string().allow('', null))
+            .optional(),
+        }),
       }).required(),
       otherwise: Joi.forbidden(),
     }),
@@ -274,13 +277,15 @@ export const addSalesDetailsSchema = Joi.object({
         nextPaymentDueDate: Joi.date().required(),
         note: Joi.string().optional(),
         apr: Joi.number().min(0).required(),
-        ertFee: Joi.number().min(0).optional(),
+        // BHPH-only field
       }).required(),
       otherwise: Joi.forbidden(),
     }),
   }).required(),
   salesType: Joi.string().optional(),
-}).required();
+})
+  .required()
+  .unknown(true);
 
 // Dealer costs removed
 
