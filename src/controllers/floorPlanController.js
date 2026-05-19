@@ -1,10 +1,12 @@
 import FloorPlan from '../models/floorPlan.js';
+import Vehicle from '../models/vehicle.js';
 import ApiError from '../utils/ApiError.js';
 import errorConstants from '../utils/errors.js';
 import logger from '../functions/logger.js';
 import { addFloorPlanSchema } from '../validations/FloorPlan.validation.js';
 import SuccessHandler from '../utils/SuccessHandler.js';
 import paginate from '../utils/paginate.js';
+import { checkFloorPlanStatusById } from '../utils/floorPlanUtils.js';
 
 // ✅ Add FloorPlan Controller
 export const addFloorPlan = async (req, res, next) => {
@@ -35,8 +37,12 @@ export const addFloorPlan = async (req, res, next) => {
         new ApiError(errorConstants.FLOOR_PLAN.COMPANY_ALREADY_EXISTS, 409)
       ); // 409 Conflict
     }
+    // Ensure new floor plans created from the FloorPlan module start as Inactive
     const floorPlan = new FloorPlan({
-      CompanyDetails,
+      CompanyDetails: {
+        ...CompanyDetails,
+        status: 'Inactive',
+      },
       Rate,
       Fees,
       term,
@@ -138,6 +144,9 @@ export const editFloorPlan = async (req, res, next) => {
       );
     }
 
+    // Check and update floor plan status after edit
+    await checkFloorPlanStatusById(id);
+
     return SuccessHandler(
       updatedFloorPlan,
       200,
@@ -216,6 +225,18 @@ export const deleteFloorPlan = async (req, res, next) => {
         new ApiError(errorConstants.FLOOR_PLAN.FLOOR_PLAN_NOT_FOUND, 404)
       );
     }
+
+    // Remove floor plan reference from all vehicles before deletion
+    await Vehicle.updateMany(
+      { 'floorPlanDetails.floorPlan': id },
+      {
+        $set: {
+          'floorPlanDetails.floorPlan': null,
+          'floorPlanDetails.isFloorPlanned': false,
+          'floorPlanDetails.isExistingFloor': false,
+        },
+      }
+    );
 
     // Delete the floor plan
     const deletedFloorPlan = await FloorPlan.findByIdAndDelete(id);

@@ -64,8 +64,9 @@ export const addCustomerSchema = Joi.object({
     DateOfBirth: dateValidator.optional(),
     Gender: enumValidator('GENDER', ['Male', 'Female', 'Other']),
     SSN: optionalString('SSN'),
-    DriverLicense: optionalString('DRIVER_LICENSE'),
-    LicenseExpiration: dateValidator.optional(),
+    documentType: optionalString('DOCUMENT_TYPE'),
+    documentNumber: optionalString('DOCUMENT_NUMBER'),
+    documentExpiration: dateValidator.optional(),
     SpouseName: optionalString('SPOUSE_NAME'),
     vehicleUse: optionalString('VEHICLE_USE'),
     isHomeOwner: booleanValidator.default(false),
@@ -74,6 +75,16 @@ export const addCustomerSchema = Joi.object({
       'Twitter',
       'Other',
     ]),
+    hearAboutUsOther: Joi.when('hearAboutUs', {
+      is: 'Other',
+      then: Joi.string().trim().required().messages({
+        'string.base':
+          errorConstants.CUSTOMER.HEAR_ABOUT_US_OTHER_MUST_BE_STRING,
+        'string.empty': errorConstants.CUSTOMER.HEAR_ABOUT_US_OTHER_REQUIRED,
+        'any.required': errorConstants.CUSTOMER.HEAR_ABOUT_US_OTHER_REQUIRED,
+      }),
+      otherwise: Joi.string().allow('', null).optional(),
+    }),
   }).required(),
   IncomeInformation: Joi.object({
     EmploymentStatus: enumValidator('EMPLOYMENT_STATUS', [

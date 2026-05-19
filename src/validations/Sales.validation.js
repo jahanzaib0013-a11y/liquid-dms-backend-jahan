@@ -85,8 +85,9 @@ const customerInfoSchema = Joi.object({
       DateOfBirth: Joi.date().optional(),
       Gender: enumValidator('GENDER', ['Male', 'Female', 'Other']),
       SSN: optionalString('SSN'),
-      DriverLicense: optionalString('DRIVER_LICENSE'),
-      LicenseExpiration: Joi.date().optional(),
+      documentType: optionalString('DOCUMENT_TYPE'),
+      documentNumber: optionalString('DOCUMENT_NUMBER'),
+      documentExpiration: Joi.date().optional(),
       SpouseName: optionalString('SPOUSE_NAME'),
       vehicleUse: optionalString('VEHICLE_USE'),
       isHomeOwner: Joi.boolean().default(false),
@@ -95,6 +96,16 @@ const customerInfoSchema = Joi.object({
         'Twitter',
         'Other',
       ]),
+      hearAboutUsOther: Joi.when('hearAboutUs', {
+        is: 'Other',
+        then: Joi.string().trim().required().messages({
+          'string.base':
+            errorConstants.SALES.HEAR_ABOUT_US_OTHER_MUST_BE_STRING,
+          'string.empty': errorConstants.SALES.HEAR_ABOUT_US_OTHER_REQUIRED,
+          'any.required': errorConstants.SALES.HEAR_ABOUT_US_OTHER_REQUIRED,
+        }),
+        otherwise: Joi.string().allow('', null).optional(),
+      }),
     }).required(),
     otherwise: Joi.forbidden(),
   }),
@@ -206,6 +217,7 @@ export const createSalesSchema = Joi.object({
 export const addSalesDetailsSchema = Joi.object({
   pricing: Joi.object({
     isCashSale: Joi.boolean().required(),
+    isReserved: Joi.boolean().optional(),
     salesType: Joi.string().optional(),
     salesDetails: Joi.object({
       saleDate: Joi.date().required(),
@@ -290,19 +302,12 @@ export const addSalesDetailsSchema = Joi.object({
 // Dealer costs removed
 
 // 🔹 Update Sales Status Schema
-export const updateSalesStatusSchema = Joi.object({
-  salesStatus: enumValidator('SALES_STATUS', [
-    'Pending',
-    'Completed',
-    'Cancelled',
-    'Refunded',
-  ]).required(),
-}).required();
+// removed updateSalesStatusSchema: vehicle status is the source of truth
 
 // 🔹 Net Trade-In Toggle Schema
 export const updateNetTradeInInfoSchema = Joi.object({
   enabled: Joi.boolean().required(),
-  netTradeInId: Joi.string().optional(),
+  netTradeInId: Joi.string().allow('', null).optional(),
 }).required();
 
 // 🔹 Legacy Schema (for backward compatibility)
@@ -313,7 +318,7 @@ export const addSalesSchema = Joi.object({
   salesDetails: salesDetailsSchema.optional(),
   cashSalesDetails: cashSalesDetailsSchema.optional(),
   buyHerePayHereDetails: buyHerePayHereDetailsSchema.optional(),
-  salesStatus: Joi.string().optional(),
+  // salesStatus removed
 }).optional();
 
 export const editSalesSchema = addSalesSchema.fork(

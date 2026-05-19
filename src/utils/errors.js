@@ -275,6 +275,12 @@ const errorConstants = {
 
     WEIGHT_MUST_BE_STRING: 'Weight must be a string.',
   },
+
+  // 🔹 Accounting Validation Errors
+  ACCOUNTING: {
+    RECEIPT_NUMBER_MUST_BE_STRING: 'Receipt number must be a string.',
+    RECEIPT_NUMBER_REQUIRED: 'Receipt number is required.',
+  },
   //🔹 Campaign Login Template Errors
   CAMPAIGN_LOGIN_TEMPLATE: {
     NAME_REQUIRED: 'The campaign login template name is required.',
@@ -562,6 +568,9 @@ const errorConstants = {
     HEAR_ABOUT_US_MUST_BE_STRING: 'Hear About Us must be a string.',
     HEAR_ABOUT_US_NEGATIVE: 'Hear About Us cannot be negative.',
     HEAR_ABOUT_US_REQUIRED: 'Hear About Us is required.',
+    HEAR_ABOUT_US_OTHER_MUST_BE_STRING: 'Hear about us other must be a string.',
+    HEAR_ABOUT_US_OTHER_REQUIRED:
+      'Hear about us other is required when "Other" is selected.',
     INCOME_VERIFICATION_METHOD_INVALID:
       'Income Verification Method is invalid.',
     INCOME_VERIFICATION_METHOD_MUST_BE_NUMBER:
@@ -653,6 +662,8 @@ const errorConstants = {
     SSN_MUST_BE_STRING: 'Ssn must be a string.',
     SSN_NEGATIVE: 'Ssn cannot be negative.',
     SSN_REQUIRED: 'Ssn is required.',
+    DOCUMENT_TYPE_MUST_BE_STRING: 'Document type must be a string.',
+    DOCUMENT_NUMBER_MUST_BE_STRING: 'Document number must be a string.',
     STATE_MUST_BE_STRING: 'State must be a string.',
     STATE_REQUIRED: 'State is required.',
     STREET_MUST_BE_STRING: 'Street must be a string.',
@@ -692,8 +703,10 @@ const errorConstants = {
     MIDDLE_NAME_MUST_BE_STRING: 'Middle name must be a string',
     MIDDLE_NAME_REQUIRED: 'Middle name is required', // If required
     SSN_MUST_BE_STRING: 'SSN must be a string',
-    DRIVER_LICENSE_MUST_BE_STRING: 'Driver license must be a string',
+    DOCUMENT_TYPE_MUST_BE_STRING: 'Document type must be a string',
+    DOCUMENT_NUMBER_MUST_BE_STRING: 'Document number must be a string',
     SPOUSE_NAME_MUST_BE_STRING: 'Spouse name must be a string',
+    DRIVER_LICENSE_MUST_BE_STRING: 'Driver license must be a string',
     VEHICLE_USE_MUST_BE_STRING: 'Vehicle use must be a string',
     LAST_NAME_REQUIRED: 'Last name is required',
     LAST_NAME_MUST_BE_STRING: 'Last name must be a string',
@@ -720,6 +733,9 @@ const errorConstants = {
     EMPLOYMENT_TYPE_MUST_BE_STRING: 'Employment type must be a string.',
     GENDER_INVALID: 'Gender is invalid.',
     HEAR_ABOUT_US_INVALID: 'Invalid option for Hear About Us.',
+    HEAR_ABOUT_US_OTHER_MUST_BE_STRING: 'Hear about us other must be a string.',
+    HEAR_ABOUT_US_OTHER_REQUIRED:
+      'Hear about us other is required when "Other" is selected.',
   },
 
   // 🔹 Message Template Errors

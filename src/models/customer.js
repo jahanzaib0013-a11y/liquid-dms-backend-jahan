@@ -51,10 +51,13 @@ const CustomerSchema = new mongoose.Schema(
       SSN: {
         type: String,
       },
-      DriverLicense: {
+      documentType: {
         type: String,
       },
-      LicenseExpiration: {
+      documentNumber: {
+        type: String,
+      },
+      documentExpiration: {
         type: Date,
       },
       SpouseName: {
@@ -70,6 +73,10 @@ const CustomerSchema = new mongoose.Schema(
       hearAboutUs: {
         type: String,
         enum: ['Facebook', 'Twitter', 'Other'],
+      },
+      hearAboutUsOther: {
+        type: String,
+        trim: true,
       },
     },
 
